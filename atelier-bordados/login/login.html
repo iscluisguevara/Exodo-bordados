@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATELIER HILO — Registro y Confirmación de Pedido</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- Librería Oficial de Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <link rel="stylesheet" href="login.css">
+    <link rel="stylesheet" href="../footer/footer.css">
+</head>
+<body>
+
+    <div class="split-layout">
+        
+        <!-- Mitad Izquierda: Resumen Editorial de la Prenda Configurada en Home / Models -->
+        <aside class="order-summary-side">
+            <div style="display: flex; gap: 1.5rem;">
+                <a href="../Models/models.html" class="back-link">← Volver al Estudio 3D</a>
+                <a href="../home/index.html" class="back-link">Inicio</a>
+            </div>
+
+            <div class="summary-card">
+                <p class="eyebrow">FICHA TÉCNICA DE TALLER</p>
+                <h1 class="summary-title">Tu Diseño <em>Personalizado</em></h1>
+
+                <div class="embroidery-badge-preview">
+                    <img id="summary-embroidery-img" src="" alt="Previsualización de diseño IA">
+                    <span class="preview-caption" id="summary-badge-caption">MATRIZ PROCESADA CON IA</span>
+                </div>
+
+                <dl class="specs-table">
+                    <div class="spec-row">
+                        <dt>Prenda / Accesorio</dt>
+                        <dd id="spec-garment">Camisa Manga Larga Oxford</dd>
+                    </div>
+                    <div class="spec-row">
+                        <dt>Técnica Seleccionada</dt>
+                        <dd id="spec-technique">Bordado 3D de Alta Precisión</dd>
+                    </div>
+                    <div class="spec-row">
+                        <dt>Color Textil</dt>
+                        <dd><span id="spec-color-dot" class="color-dot"></span> <span id="spec-color-code">Negro Ónix (#1C1C1E)</span></dd>
+                    </div>
+                    <div class="spec-row">
+                        <dt>Coordenadas (X, Y)</dt>
+                        <dd id="spec-coords">X: 0.22 | Y: 0.20 | Escala: 10cm</dd>
+                    </div>
+                    <div class="spec-row">
+                        <dt id="spec-metric-label">Detalle Técnico</dt>
+                        <dd id="spec-stitches">~4,200 puntadas</dd>
+                    </div>
+                    <div class="spec-row total-row">
+                        <dt>Total Estimado (Personalización incl.)</dt>
+                        <dd id="spec-price">$890 MXN</dd>
+                    </div>
+                </dl>
+            </div>
+
+            <p class="editorial-footnote">ATELIER HILO • ORDEN DE PRODUCCIÓN DIGITAL</p>
+        </aside>
+
+        <!-- Mitad Derecha: Autenticación Verificada con Google -->
+        <main class="auth-side">
+            <div class="auth-box">
+                <p class="eyebrow">PASO FINAL / AUTENTICACIÓN</p>
+                <h2 class="auth-title">Identifícate para procesar tu orden</h2>
+                <p class="auth-desc">
+                    Para garantizar la seguridad de tu pedido y enviarte el seguimiento de producción de tu prenda personalizada, utilizamos autenticación verificada mediante Google.
+                </p>
+
+                <!-- Contenedor Oficial de Google Sign-In -->
+                <div class="google-auth-wrapper">
+                    <div id="g_id_onload"
+                         data-client_id="TU_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+                         data-context="signin"
+                         data-ux_mode="popup"
+                         data-callback="handleGoogleCredentialResponse"
+                         data-auto_prompt="false">
+                    </div>
+
+                    <div class="g_id_signin"
+                         data-type="standard"
+                         data-shape="rectangular"
+                         data-theme="filled_black"
+                         data-text="continue_with"
+                         data-size="large"
+                         data-logo_alignment="left"
+                         data-width="340">
+                    </div>
+                </div>
+
+                <div class="divider"><span>O PRUEBA EN LOCAL (VS CODE)</span></div>
+
+                <!-- Botón de simulación para probar el flujo en VS Code antes de dar de alta el dominio en Google Cloud -->
+                <button id="simulate-google-btn" class="btn-google-sim">
+                    <svg width="18" height="18" viewBox="0 0 48 48">
+                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                    </svg>
+                    <span>Continuar con Google (Modo Demo Local)</span>
+                </button>
+
+                <!-- Tarjeta de Usuario Verificado (Aparece tras iniciar sesión) -->
+                <div id="verified-user-card" class="verified-card hidden">
+                    <div class="verified-header">
+                        <span class="check-badge">✓ IDENTIDAD VERIFICADA</span>
+                    </div>
+                    <p id="user-name-display" class="user-name"></p>
+                    <p id="user-email-display" class="user-email"></p>
+                    <button id="confirm-production-btn" class="btn-confirm">
+                        Enviar Orden a Taller de Producción →
+                    </button>
+                </div>
+            </div>
+        </main>
+
+    </div>
+
+    <!-- Contenedor donde se monta el Footer Legal y de Redes Sociales (/footer/footer.js) -->
+    <div id="site-footer-mount"></div>
+
+    <script src="login.js"></script>
+    <script src="../footer/footer.js"></script>
+</body>
+</html>

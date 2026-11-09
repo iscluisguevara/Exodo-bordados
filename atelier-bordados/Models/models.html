@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATELIER HILO — Estudio 3D &amp; Digitalizador IA (Bordado / Estampado)</title>
+    <!-- Tipografías Editoriales: Cormorant Garamond (Serif) + Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Three.js para Modelos 3D PBR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link rel="stylesheet" href="models.css">
+    <link rel="stylesheet" href="../footer/footer.css">
+</head>
+<body>
+
+    <!-- Barra de navegación estilo Editorial -->
+    <header class="navbar">
+        <a href="../home/index.html" class="nav-brand">EXODO <span>Bordados y Playeras</span></a>
+        <nav class="nav-links">
+            <a href="../home/index.html">← Inicio &amp; Técnicas</a>
+            <a href="#catalogo-3d" class="active-link">Catálogo 3D (7 Prendas)</a>
+            <a href="#estudio-ia">Laboratorio IA</a>
+            <a href="../login/login.html" class="nav-cta">Finalizar Pedido →</a>
+        </nav>
+    </header>
+
+    <!-- Layout Principal del Estudio 3D -->
+    <main class="studio-grid" id="catalogo-3d">
+
+        <!-- COLUMNA IZQUIERDA: Catálogo de 7 Prendas y Gorros + Textil -->
+        <section class="garment-selector-panel">
+            <div class="panel-header">
+                <p class="eyebrow">01 / CATÁLOGO ANATÓMICO 3D</p>
+                <h1 class="editorial-title">Prendas &amp; <em>Accesorios</em></h1>
+            </div>
+
+            <!-- Filtro rápido por categoría -->
+            <div class="category-tabs">
+                <button class="cat-tab active" data-filter="all">Todos (7)</button>
+                <button class="cat-tab" data-filter="tops">Sastrería &amp; Tops</button>
+                <button class="cat-tab" data-filter="headwear">Gorras &amp; Gorros</button>
+            </div>
+
+            <div class="garment-list" id="garment-list">
+                <button class="garment-card active" data-model="long-shirt" data-category="tops">
+                    <span class="garment-index">01</span>
+                    <div class="garment-info">
+                        <strong>Camisa Manga Larga Oxford</strong>
+                        <small>Algodón Egipcio Peinado • Cuello Sastrero</small>
+                    </div>
+                    <span class="garment-price">$890</span>
+                </button>
+
+                <button class="garment-card" data-model="short-shirt" data-category="tops">
+                    <span class="garment-index">02</span>
+                    <div class="garment-info">
+                        <strong>Camisa Manga Corta</strong>
+                        <small>Popelina Respirable • Corte Relaxed</small>
+                    </div>
+                    <span class="garment-price">$790</span>
+                </button>
+
+                <button class="garment-card" data-model="tshirt" data-category="tops">
+                    <span class="garment-index">03</span>
+                    <div class="garment-info">
+                        <strong>Playera Crewneck Heavyweight</strong>
+                        <small>Jersey 280 GSM • Cuello Rib Cerrado</small>
+                    </div>
+                    <span class="garment-price">$520</span>
+                </button>
+
+                <button class="garment-card" data-model="polo" data-category="tops">
+                    <span class="garment-index">04</span>
+                    <div class="garment-info">
+                        <strong>Playera Tipo Polo Piqué</strong>
+                        <small>Tejido Piqué Doble • Aletilla 3 Botones</small>
+                    </div>
+                    <span class="garment-price">$650</span>
+                </button>
+
+                <button class="garment-card" data-model="hoodie" data-category="tops">
+                    <span class="garment-index">05</span>
+                    <div class="garment-info">
+                        <strong>Hoodie Boxy 450 GSM</strong>
+                        <small>Felpa Francesa Pesada • Doble Capucha</small>
+                    </div>
+                    <span class="garment-price">$1,150</span>
+                </button>
+
+                <button class="garment-card" data-model="cap" data-category="headwear">
+                    <span class="garment-index">06</span>
+                    <div class="garment-info">
+                        <strong>Gorra Estructurada 6 Paneles</strong>
+                        <small>Sarga de Algodón Cepillado • Visera Curva</small>
+                    </div>
+                    <span class="garment-price">$450</span>
+                </button>
+
+                <button class="garment-card" data-model="beanie" data-category="headwear">
+                    <span class="garment-index">07</span>
+                    <div class="garment-info">
+                        <strong>Gorro Beanie Fisherman</strong>
+                        <small>Punto Acanalado Merino • Doblez Frontal</small>
+                    </div>
+                    <span class="garment-price">$420</span>
+                </button>
+            </div>
+
+            <!-- Selector de Color de Tela -->
+            <div class="fabric-colors">
+                <div class="swatch-header">
+                    <span class="label-small">TONO DEL TEXTIL:</span>
+                    <span id="fabric-color-name" class="color-name-label">Negro Ónix</span>
+                </div>
+                <div class="color-swatches">
+                    <button class="swatch active" data-color="#1c1c1e" data-name="Negro Ónix" style="background: #1c1c1e;" title="Negro Ónix"></button>
+                    <button class="swatch" data-color="#f2efe9" data-name="Crudo Editorial" style="background: #f2efe9;" title="Crudo Editorial"></button>
+                    <button class="swatch" data-color="#1b2a4a" data-name="Azul Marino" style="background: #1b2a4a;" title="Azul Marino"></button>
+                    <button class="swatch" data-color="#2d4234" data-name="Verde Bosque" style="background: #2d4234;" title="Verde Bosque"></button>
+                    <button class="swatch" data-color="#5c242b" data-name="Vino Burdeos" style="background: #5c242b;" title="Vino Burdeos"></button>
+                    <button class="swatch" data-color="#8c7a6b" data-name="Arena Taupe" style="background: #8c7a6b;" title="Arena Taupe"></button>
+                    <button class="swatch" data-color="#3b3f46" data-name="Gris Carbón" style="background: #3b3f46;" title="Gris Carbón"></button>
+                </div>
+            </div>
+        </section>
+
+        <!-- COLUMNA CENTRAL: Visor 3D PBR Interactivo -->
+        <section class="viewport-container">
+            <div class="viewport-top-bar">
+                <div class="viewport-badge">
+                    <span class="dot-live"></span> VISOR 3D PBR REALISTA • ARRASTRA PARA ROTAR • SCROLL PARA ZOOM
+                </div>
+                <div class="technique-pill-indicator" id="viewport-tech-pill">
+                    TÉCNICA ACTIVA: <strong>BORDADO 3D</strong>
+                </div>
+            </div>
+
+            <div id="canvas3d-wrapper"></div>
+
+            <div class="viewport-footer">
+                <div class="model-meta">
+                    <span id="current-garment-label">PRENDA: CAMISA MANGA LARGA OXFORD</span>
+                    <span id="current-weave-label" class="weave-sub">TEXTURA: TRAMA OXFORD 100% ALGODÓN</span>
+                </div>
+                <div class="viewport-actions">
+                    <button id="toggle-wireframe-btn" class="btn-ghost" title="Ver malla geométrica 3D">Malla 3D</button>
+                    <button id="reset-camera-btn" class="btn-ghost">Centrar Cámara</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- COLUMNA DERECHA: Selector Bordado vs Estampado + Motor IA -->
+        <section class="embroidery-studio-panel" id="estudio-ia">
+            <p class="eyebrow">02 / TÉCNICA Y PROCESAMIENTO IA</p>
+
+            <!-- Conmutador Principal: Bordado vs Estampado -->
+            <div class="technique-switcher" role="radiogroup" aria-label="Técnica de personalización">
+                <button type="button" class="tech-btn active" data-technique="embroidery">
+                    <span class="tech-icon">✦</span>
+                    <div class="tech-text">
+                        <strong>Bordado 3D</strong>
+                        <small>Hilo con relieve real</small>
+                    </div>
+                </button>
+                <button type="button" class="tech-btn" data-technique="print">
+                    <span class="tech-icon">◈</span>
+                    <div class="tech-text">
+                        <strong>Estampado HD</strong>
+                        <small>Serigrafía / DTF</small>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Zona de carga de archivo -->
+            <label for="logo-upload" class="upload-dropzone" id="dropzone">
+                <input type="file" id="logo-upload" accept="image/*" hidden>
+                <div class="dropzone-content">
+                    <span class="upload-icon">↑</span>
+                    <strong>Sube o arrastra tu logotipo / diseño</strong>
+                    <small>PNG, JPG, SVG • IA adapta la textura a Bordado o Estampado</small>
+                </div>
+            </label>
+
+            <!-- Opciones inteligentes de limpieza de imagen -->
+            <div class="ai-tools-row">
+                <label class="checkbox-clean">
+                    <input type="checkbox" id="remove-bg-toggle" checked>
+                    <span>IA: Eliminar fondo blanco automáticamente</span>
+                </label>
+            </div>
+
+            <!-- Estado del procesamiento IA -->
+            <div id="ai-status" class="ai-status hidden">
+                <div class="spinner"></div>
+                <span id="ai-status-text">Analizando geometría cromática y aplicando técnica...</span>
+            </div>
+
+            <!-- Diagnóstico Inteligente de la IA al subir imagen -->
+            <div id="ai-diagnostic-card" class="ai-diagnostic">
+                <div class="diag-header">
+                    <span class="ai-spark">✦ DIAGNÓSTICO IA DEL DISEÑO</span>
+                    <span id="ai-confidence" class="ai-badge">Óptimo</span>
+                </div>
+                <p id="ai-recommendation-text">
+                    Monograma de alto contraste detectado. Ideal para <strong>Bordado de Alta Precisión</strong> con relieve de hilo satinado.
+                </p>
+            </div>
+
+            <!-- Previsualización de Textura Generada (Bordado vs Estampado) -->
+            <div id="embroidery-preview-box" class="preview-box">
+                <div class="preview-header">
+                    <span id="preview-mode-title">MATRIZ DE PUNTADAS IA</span>
+                    <span id="stitch-count" class="badge-stitch">~4,200 puntadas</span>
+                </div>
+                <div class="preview-canvas-holder">
+                    <canvas id="embroidery-canvas" width="320" height="320"></canvas>
+                </div>
+            </div>
+
+            <!-- Controles de Posición, Tamaño y Parámetros de Técnica -->
+            <div class="placement-controls" id="placement-controls">
+                <div class="preset-buttons">
+                    <span class="label-small">ZONA EN LA PRENDA:</span>
+                    <div class="preset-row" id="preset-row">
+                        <button type="button" class="btn-preset active" data-pos="left-chest">Pecho Izq.</button>
+                        <button type="button" class="btn-preset" data-pos="center">Centro</button>
+                        <button type="button" class="btn-preset" data-pos="right-chest">Pecho Der.</button>
+                    </div>
+                </div>
+
+                <div class="slider-group">
+                    <label>
+                        <span>Posición Horizontal (X)</span>
+                        <output id="val-x">0.22</output>
+                    </label>
+                    <input type="range" id="logo-x" min="-0.38" max="0.38" step="0.01" value="0.22">
+                </div>
+
+                <div class="slider-group">
+                    <label>
+                        <span>Posición Vertical (Y)</span>
+                        <output id="val-y">0.20</output>
+                    </label>
+                    <input type="range" id="logo-y" min="-0.40" max="0.38" step="0.01" value="0.20">
+                </div>
+
+                <div class="slider-group">
+                    <label>
+                        <span>Tamaño del Diseño</span>
+                        <output id="val-scale">10 cm</output>
+                    </label>
+                    <input type="range" id="logo-scale" min="0.16" max="0.68" step="0.01" value="0.28">
+                </div>
+
+                <!-- Control dinámico según Bordado o Estampado -->
+                <div class="slider-group" id="density-slider-group">
+                    <label>
+                        <span id="density-label-title">Densidad de Hilo (Relieve IA)</span>
+                        <output id="val-density">Alta</output>
+                    </label>
+                    <input type="range" id="stitch-density" min="2" max="6" step="1" value="3">
+                </div>
+            </div>
+
+            <!-- Resumen de precio dinámico y CTA -->
+            <div class="checkout-footer">
+                <div class="price-breakdown">
+                    <span>Total estimado:</span>
+                    <strong id="live-total-price">$890 MXN</strong>
+                </div>
+                <button id="continue-order-btn" class="btn-primary">
+                    Continuar con el pedido →
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Contenedor donde se monta el Footer Legal y de Redes Sociales (/footer/footer.js) -->
+    <div id="site-footer-mount"></div>
+
+    <script src="models.js"></script>
+    <script src="../footer/footer.js"></script>
+</body>
+</html>

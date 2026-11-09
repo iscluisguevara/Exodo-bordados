@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATELIER HILO — Sastrería Personalizada, Bordado 3D &amp; Estampado IA</title>
+    <!-- Tipografías Editoriales: Cormorant Garamond (Serif) + Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="home.css">
+    <link rel="stylesheet" href="../footer/footer.css">
+</head>
+<body>
+
+    <!-- Barra de navegación estilo Editorial -->
+    <header class="navbar">
+        <div class="nav-brand">EXODO <span> </span></div>
+        <nav class="nav-links">
+            <a href="#tecnicas">Bordado vs Estampado</a>
+            <a href="#laboratorio-ia">Diferenciador IA</a>
+            <a href="#coleccion">Catálogo (7 Prendas)</a>
+            <a href="../Models/models.html" class="nav-studio-link">Estudio 3D Interactivo</a>
+            <a href="../login/login.html" class="nav-cta">Mi Pedido →</a>
+        </nav>
+    </header>
+
+    <!-- Cinta en movimiento (Marquee Editorial) -->
+    <div class="marquee-bar">
+        <div class="marquee-track">
+            <span>BORDADO 3D DE ALTA PRECISIÓN • ESTAMPADO SERIGRÁFICO &amp; DTF HD • DIFERENCIADOR INTELIGENTE CON IA • CAMISAS, PLAYERAS, HOODIES, GORRAS &amp; GORROS • </span>
+            <span>BORDADO 3D DE ALTA PRECISIÓN • ESTAMPADO SERIGRÁFICO &amp; DTF HD • DIFERENCIADOR INTELIGENTE CON IA • CAMISAS, PLAYERAS, HOODIES, GORRAS &amp; GORROS • </span>
+        </div>
+    </div>
+
+    <!-- HERO EDITORIAL + SELECTOR DE TÉCNICA -->
+    <section class="hero-section" id="tecnicas">
+        <div class="hero-left reveal">
+            <p class="eyebrow"> BORDAMOS TUS IDEAS CON CALIDAD Y CONFIANZA</p>
+            <h1 class="hero-title">Bordados personalizados para tu <em>negocio o empresa</em>.</h1>
+            <p class="hero-desc">
+                Elige entre la riqueza táctil del <strong>Bordado con Hilo 3D</strong> o la fidelidad cromática del <strong>Estampado Serigráfico / DTF HD</strong>. Sube tu logotipo y deja que nuestra Inteligencia Artificial analice y diferencie el acabado perfecto antes de proyectarlo en el visor 3D.
+            </p>
+
+            <!-- Selector de Técnica Principal en Home -->
+            <div class="technique-cards-grid">
+                <article class="technique-choice-card active" data-technique="embroidery">
+                    <div class="tc-top">
+                        <span class="tc-tag">TÉCNICA 01 • RELIEVE FÍSICO</span>
+                        <span class="tc-check">✓ Seleccionado</span>
+                    </div>
+                    <h3>✦ Bordado 3D de Alta Precisión</h3>
+                    <p>
+                        Matriz de puntadas Tatami y Satín con hilo rayon de alto brillo. Ideal para monogramas, escudos corporativos y logotipos vectoriales con volumen tridimensional.
+                    </p>
+                    <ul class="tc-specs">
+                        <li>Relieve real de hasta 2.5 mm sobre tela</li>
+                        <li>Resistencia industrial al lavado</li>
+                        <li>Recomendado en Camisas, Polos, Gorras y Beanies</li>
+                    </ul>
+                </article>
+
+                <article class="technique-choice-card" data-technique="print">
+                    <div class="tc-top">
+                        <span class="tc-tag">TÉCNICA 02 • ALTA DEFINICIÓN</span>
+                        <span class="tc-check">Seleccionar</span>
+                    </div>
+                    <h3>◈ Estampado Serigráfico / DTF HD</h3>
+                    <p>
+                        Transferencia textil de 300 DPI con tintas elásticas de tacto suave que se funden con el poro del algodón. Ideal para ilustraciones complejas, fotografías y degradados.
+                    </p>
+                    <ul class="tc-specs">
+                        <li>Fidelidad total en degradados y micro-detalles</li>
+                        <li>Tacto ligero integrado a la trama textil</li>
+                        <li>Recomendado en Playeras Crewneck, Hoodies y Gorras</li>
+                    </ul>
+                </article>
+            </div>
+
+            <div class="hero-actions">
+                <a href="../Models/models.html" id="go-to-3d-btn" class="btn-primary">
+                    Abrir Configurador 3D con esta Técnica →
+                </a>
+            </div>
+        </div>
+
+        <!-- LABORATORIO COMPARADOR IA EN VIVO (BORDADO VS ESTAMPADO) -->
+        <div class="hero-right reveal" id="laboratorio-ia">
+            <div class="ai-lab-card">
+                <div class="lab-header">
+                    <div>
+                        <p class="eyebrow">DIFERENCIADOR VISUAL CON IA</p>
+                        <h2 class="lab-title">Prueba tu logotipo en ambas técnicas</h2>
+                    </div>
+                    <span class="ai-live-pill">MOTOR IA ACTIVO</span>
+                </div>
+
+                <!-- Dropzone para subir imagen en Home -->
+                <label for="home-logo-upload" class="upload-dropzone" id="home-dropzone">
+                    <input type="file" id="home-logo-upload" accept="image/*" hidden>
+                    <div class="dropzone-content">
+                        <span class="upload-icon">✦</span>
+                        <strong>Sube tu logotipo aquí para que la IA lo analice</strong>
+                        <small>Compara al instante cómo luce en Bordado 3D vs Estampado HD</small>
+                    </div>
+                </label>
+
+                <div class="lab-controls-bar">
+                    <label class="clean-bg-check">
+                        <input type="checkbox" id="home-remove-bg" checked>
+                        <span>Recorte IA de fondo blanco</span>
+                    </label>
+                    <span id="home-ai-verdict" class="verdict-pill">Analizando monograma...</span>
+                </div>
+
+                <!-- Comparador Lado a Lado: Bordado IA vs Estampado IA -->
+                <div class="comparison-grid">
+                    <div class="comp-panel active" id="panel-embroidery" data-select-tech="embroidery">
+                        <div class="comp-head">
+                            <strong>✦ BORDADO 3D IA</strong>
+                            <span id="home-stitch-badge">~4,200 puntadas</span>
+                        </div>
+                        <div class="canvas-stage dark-fabric-stage">
+                            <canvas id="home-embroidery-canvas" width="260" height="260"></canvas>
+                        </div>
+                        <p class="comp-caption">Textura de hilo trenzado con relieve direccional y sombra física.</p>
+                    </div>
+
+                    <div class="comp-panel" id="panel-print" data-select-tech="print">
+                        <div class="comp-head">
+                            <strong>◈ ESTAMPADO HD IA</strong>
+                            <span id="home-print-badge">300 DPI • DTF</span>
+                        </div>
+                        <div class="canvas-stage dark-fabric-stage">
+                            <canvas id="home-print-canvas" width="260" height="260"></canvas>
+                        </div>
+                        <p class="comp-caption">Tinta serigráfica de alta definición integrada al poro del textil.</p>
+                    </div>
+                </div>
+
+                <!-- Diagnóstico detallado de la IA -->
+                <div class="ai-diagnosis-banner" id="home-ai-explanation">
+                    <strong>Diagnóstico IA:</strong> Sube cualquier imagen. Nuestro algoritmo detecta la cantidad de tonos, degradados y nitidez de bordes para optimizar automáticamente las puntadas o la matriz de tinta.
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECCIÓN DE CATÁLOGO DE 7 PRENDAS (CONECTADO DIRECTO A /Models/models.html) -->
+    <section class="catalog-preview-section" id="coleccion">
+        <div class="section-header">
+            <div>
+                <p class="eyebrow">02 / COLECCIÓN TEXTIL 3D</p>
+                <h2 class="section-title">Selecciona una prenda para abrir en el <em>Estudio 3D</em></h2>
+            </div>
+            <a href="../Models/models.html" class="btn-outline">Ver las 7 Prendas en 3D →</a>
+        </div>
+
+        <div class="catalog-cards-grid">
+            <div class="catalog-item" data-garment="long-shirt">
+                <span class="cat-num">01</span>
+                <span class="cat-badge">Sastrería</span>
+                <h3>Camisa Manga Larga Oxford</h3>
+                <p>Algodón Egipcio 100% con cuello estructurado y botones de nácar.</p>
+                <div class="cat-footer">
+                    <strong>$890 MXN</strong>
+                    <span>Configurar en 3D →</span>
+                </div>
+            </div>
+
+            <div class="catalog-item" data-garment="short-shirt">
+                <span class="cat-num">02</span>
+                <span class="cat-badge">Sastrería</span>
+                <h3>Camisa Manga Corta</h3>
+                <p>Popelina fina respirable de corte contemporáneo ideal para bordado o DTF.</p>
+                <div class="cat-footer">
+                    <strong>$790 MXN</strong>
+                    <span>Configurar en 3D →</span>
+                </div>
+            </div>
+
+            <div class="catalog-item" data-garment="tshirt">
+                <span class="cat-num">03</span>
+                <span class="cat-badge">Nuevo • Streetwear</span>
+                <h3>Playera Crewneck Heavyweight</h3>
+                <p>Jersey peinado 280 GSM con cuello rib cerrado. Perfecta para estampado HD o bordado.</p>
+                <div class="cat-footer">
+                    <strong>$520 MXN</strong>
+                    <span>Configurar en 3D →</span>
+                </div>
+            </div>
+
+            <div class="catalog-item" data-garment="polo">
+                <span class="cat-num">04</span>
+                <span class="cat-badge">Clásico</span>
+                <h3>Playera Tipo Polo Piqué</h3>
+                <p>Tejido piqué doble panal de alta densidad con cuello tejido y 3 botones.</p>
+                <div class="cat-footer">
+                    <strong>$650 MXN</strong>
+                    <span>Configurar en 3D →</span>
+                </div>
+            </div>
+
+            <div class="catalog-item" data-garment="hoodie">
+                <span class="cat-num">05</span>
+                <span class="cat-badge">Heavyweight</span>
+                <h3>Hoodie Boxy 450 GSM</h3>
+                <p>Felpa francesa pesada con doble capucha, herrajes metálicos y bolsillo canguro.</p>
+                <div class="cat-footer">
+                    <strong>$1,150 MXN</strong>
+                    <span>Configurar en 3D →</span>
+                </div>
+            </div>
+
+            <div class="catalog-item" data-garment="cap">
+                <span class="cat-num">06</span>
+                <span class="cat-badge">Nuevo • Headwear</span>
+                <h3>Gorra Estructurada 6 Paneles</h3>
+                <p>Sarga de algodón cepillado con visera curva y corona frontal para bordado 3D.</p>
+                <div class="cat-footer">
+                    <strong>$450 MXN</strong>
+                    <span>Configurar en 3D →</span>
+                </div>
+            </div>
+
+            <div class="catalog-item" data-garment="beanie">
+                <span class="cat-num">07</span>
+                <span class="cat-badge">Nuevo • Headwear</span>
+                <h3>Gorro Beanie Fisherman</h3>
+                <p>Tejido de punto acanalado con doblez frontal grueso para bordado de escudo.</p>
+                <div class="cat-footer">
+                    <strong>$420 MXN</strong>
+                    <span>Configurar en 3D →</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contenedor donde se monta el Footer Legal y de Redes Sociales (/footer/footer.js) -->
+    <div id="site-footer-mount"></div>
+
+    <script src="home.js"></script>
+    <script src="../footer/footer.js"></script>
+</body>
+</html>
