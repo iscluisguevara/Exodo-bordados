@@ -109,13 +109,30 @@
                 <!-- Tarjeta de Usuario Verificado (Aparece tras iniciar sesión) -->
                 <div id="verified-user-card" class="verified-card hidden">
                     <div class="verified-header">
-                        <span class="check-badge">✓ IDENTIDAD VERIFICADA</span>
+                        <span class="check-badge" id="auth-status-badge">✓ IDENTIDAD VERIFICADA</span>
                     </div>
                     <p id="user-name-display" class="user-name"></p>
                     <p id="user-email-display" class="user-email"></p>
                     <button id="confirm-production-btn" class="btn-confirm">
                         Enviar Orden a Taller de Producción →
                     </button>
+                </div>
+
+                <!-- Tarjeta Editorial de Confirmación de Orden (Aparece tras POST /api/orders exitoso) -->
+                <div id="order-confirmation-card" class="order-confirmation-card hidden">
+                    <p class="eyebrow">CONFIRMACIÓN OFICIAL DE TALLER</p>
+                    <h3 class="folio-title">Folio: <span id="confirmed-order-folio">AH-2026-0000</span></h3>
+                    <p id="confirmed-order-msg" class="folio-desc">
+                        Tu orden y matriz de diseño han sido registradas exitosamente en producción.
+                    </p>
+                    <div class="folio-actions">
+                        <a id="confirmed-image-link" href="#" target="_blank" rel="noopener noreferrer" class="folio-link hidden">
+                            Ver archivo PNG generado en servidor →
+                        </a>
+                        <a href="../Models/models.html" class="btn-new-order">
+                            Configurar otra prenda en 3D →
+                        </a>
+                    </div>
                 </div>
             </div>
         </main>

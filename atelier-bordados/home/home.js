@@ -12,6 +12,10 @@ const homeState = {
     fabricColorName: 'Negro Ónix',
     technique: 'embroidery', // 'embroidery' | 'print'
     techniqueName: 'Bordado 3D de Alta Precisión',
+    logoX: 0.22,
+    logoY: 0.20,
+    logoScale: 0.26,
+    stitchDensity: 3,
     removeWhiteBg: true,
     stitchCount: 4200,
     printAreaCm2: 85,

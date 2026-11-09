@@ -289,6 +289,82 @@ html, body {
     letter-spacing: 0.12em;
     text-transform: uppercase;
     cursor: pointer;
+    transition: opacity 0.25s ease, background 0.25s ease;
+}
+
+.btn-confirm:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
+
+/* Tarjeta Editorial de Folio Confirmado */
+.order-confirmation-card {
+    margin-top: 0.6rem;
+    padding: 1.4rem;
+    background: var(--bg-dark);
+    color: var(--bg-bone);
+    border-left: 3px solid var(--accent-gold);
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    animation: fadeIn 0.45s ease;
+}
+
+.folio-title {
+    font-family: var(--font-serif);
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: #fff;
+}
+
+.folio-title span {
+    color: #e5c391;
+    letter-spacing: 0.06em;
+}
+
+.folio-desc {
+    font-size: 0.8rem;
+    line-height: 1.55;
+    color: #b5b0a6;
+}
+
+.folio-actions {
+    margin-top: 0.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.folio-link {
+    font-size: 0.74rem;
+    color: #e5c391;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.folio-link:hover {
+    text-decoration: underline;
+}
+
+.btn-new-order {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: var(--bg-bone);
+    text-decoration: none;
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 600;
+    transition: all 0.25s ease;
+}
+
+.btn-new-order:hover {
+    background: var(--bg-bone);
+    color: var(--ink);
 }
 
 .hidden {
