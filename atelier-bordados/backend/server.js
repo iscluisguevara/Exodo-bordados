@@ -39,6 +39,7 @@ app.use('/home', express.static(path.join(__dirname, '../home')));
 app.use('/login', express.static(path.join(__dirname, '../login')));
 app.use('/Models', express.static(path.join(__dirname, '../Models')));
 app.use('/footer', express.static(path.join(__dirname, '../footer')));
+app.use('/assets', express.static(path.join(__dirname, '../assets')));
 app.use('/api/uploads', express.static(UPLOADS_DIR));
 
 // Redirección raíz hacia /home/index.html

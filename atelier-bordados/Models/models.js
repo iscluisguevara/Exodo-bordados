@@ -12,7 +12,7 @@ const GARMENT_CATALOG = {
         cameraZ: 4.15,
         cameraY: 0.12,
         logoZ: 0.345,
-        defaultPos: { x: 0.22, y: 0.20, scale: 0.26 }
+        defaultPos: { x: 0.18, y: 0.28, scale: 0.23 }
     },
     'short-shirt': {
         name: 'Camisa Manga Corta Popelina',
@@ -31,10 +31,10 @@ const GARMENT_CATALOG = {
         weave: 'jersey',
         weaveLabel: 'PUNTO JERSEY PEINADO 280 GSM',
         category: 'tops',
-        cameraZ: 4.0,
+        cameraZ: 8.0,
         cameraY: 0.10,
         logoZ: 0.340,
-        defaultPos: { x: 0.0, y: 0.14, scale: 0.42 }
+        defaultPos: { x: 0.27, y: 0.51, scale: 0.34 }
     },
     'polo': {
         name: 'Playera Tipo Polo Piqué',
@@ -45,7 +45,7 @@ const GARMENT_CATALOG = {
         cameraZ: 4.0,
         cameraY: 0.12,
         logoZ: 0.345,
-        defaultPos: { x: 0.22, y: 0.20, scale: 0.25 }
+        defaultPos: { x: 0.22, y: 0.42, scale: 0.26 }
     },
     'hoodie': {
         name: 'Hoodie Boxy 450 GSM',
@@ -67,7 +67,7 @@ const GARMENT_CATALOG = {
         cameraZ: 2.65,
         cameraY: 0.06,
         logoZ: 0.525,
-        defaultPos: { x: 0.0, y: 0.06, scale: 0.32 }
+        defaultPos: { x: 0.0, y: -0.08, scale: 0.37 }
     },
     'beanie': {
         name: 'Gorro Beanie Fisherman',
@@ -82,7 +82,6 @@ const GARMENT_CATALOG = {
     }
 };
 
-// Estado global sincronizado con localStorage
 const orderState = {
     garmentType: 'long-shirt',
     garmentName: 'Camisa Manga Larga Oxford',
@@ -90,7 +89,7 @@ const orderState = {
     price: 890,
     fabricColor: '#1c1c1e',
     fabricColorName: 'Negro Ónix',
-    technique: 'embroidery', // 'embroidery' | 'print'
+    technique: 'embroidery',
     techniqueName: 'Bordado 3D de Alta Precisión',
     logoX: 0.22,
     logoY: 0.20,
@@ -103,7 +102,19 @@ const orderState = {
     rawLogoDataUrl: null
 };
 
-// Variables Three.js
+// Interceptor de texturas externas faltantes
+const dummy1px = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+
+const globalModelManager = new THREE.LoadingManager();
+globalModelManager.setURLModifier((url) => {
+    if (url.endsWith('.png') || url.endsWith('.jpg') || url.endsWith('.jpeg')) {
+        return dummy1px;
+    }
+    return url;
+});
+
+const gltfLoader = new THREE.GLTFLoader(globalModelManager);
+let realShirtMesh = null; 
 let scene, camera, renderer, garmentGroup, shadowPlane;
 let fabricMaterial, secondaryMaterial, accentMetalMaterial, buttonMaterial, logoMesh;
 let bumpCanvas, logoTexture, logoBumpTexture;
@@ -116,6 +127,9 @@ let targetCameraY = 0.12;
 let isWireframe = false;
 let uploadedSourceImage = null;
 const weaveTextureCache = {};
+const surfaceRaycaster = new THREE.Raycaster();
+const rayOrigin = new THREE.Vector3();
+const rayDir = new THREE.Vector3(0, 0, -1);
 
 document.addEventListener('DOMContentLoaded', () => {
     restoreSavedStateIfAny();
@@ -136,9 +150,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-/**
- * Restaura selección previa desde Home si el usuario eligió técnica o prenda allá
- */
 function restoreSavedStateIfAny() {
     try {
         const savedRaw = localStorage.getItem('atelier_custom_order');
@@ -160,15 +171,9 @@ function restoreSavedStateIfAny() {
                 ? 'Bordado 3D de Alta Precisión'
                 : 'Estampado Serigráfico / DTF HD';
         }
-        if (saved.fabricColor) {
-            orderState.fabricColor = saved.fabricColor;
-        }
-        if (saved.fabricColorName) {
-            orderState.fabricColorName = saved.fabricColorName;
-        }
-        if (saved.rawLogoDataUrl) {
-            orderState.rawLogoDataUrl = saved.rawLogoDataUrl;
-        }
+        if (saved.fabricColor) orderState.fabricColor = saved.fabricColor;
+        if (saved.fabricColorName) orderState.fabricColorName = saved.fabricColorName;
+        if (saved.rawLogoDataUrl) orderState.rawLogoDataUrl = saved.rawLogoDataUrl;
     } catch (e) {
         console.warn('No se pudo restaurar estado previo:', e);
     }
@@ -180,10 +185,6 @@ function initOffscreenBumpCanvas() {
     bumpCanvas.height = 320;
 }
 
-/**
- * 1. TEXTURAS MICRO-TEJIDO PROCEDURALES (PBR BUMP MAPS)
- * Genera mapas de relieve reales para algodón Oxford, Piqué, Felpa, Sarga y Punto Acanalado
- */
 function getWeaveBumpTexture(weaveType) {
     if (weaveTextureCache[weaveType]) return weaveTextureCache[weaveType];
 
@@ -205,7 +206,6 @@ function getWeaveBumpTexture(weaveType) {
             }
         }
     } else if (weaveType === 'pique') {
-        // Panal hexagonal piqué para Polo
         for (let y = 0; y < 128; y += 6) {
             for (let x = 0; x < 128; x += 6) {
                 const offset = (y % 12 === 0) ? 0 : 3;
@@ -216,7 +216,6 @@ function getWeaveBumpTexture(weaveType) {
             }
         }
     } else if (weaveType === 'fleece') {
-        // Sarga suave y grano de felpa pesada
         for (let y = 0; y < 128; y += 2) {
             for (let x = 0; x < 128; x += 2) {
                 const v = 115 + ((x * 3 + y * 5) % 45);
@@ -225,7 +224,6 @@ function getWeaveBumpTexture(weaveType) {
             }
         }
     } else if (weaveType === 'twill') {
-        // Sarga diagonal 45° para Gorra
         ctx.strokeStyle = '#c8c8c8';
         ctx.lineWidth = 2;
         for (let i = -128; i < 256; i += 5) {
@@ -235,7 +233,6 @@ function getWeaveBumpTexture(weaveType) {
             ctx.stroke();
         }
     } else if (weaveType === 'rib') {
-        // Acanalado vertical profundo para Gorro Beanie
         for (let x = 0; x < 128; x += 8) {
             const grad = ctx.createLinearGradient(x, 0, x + 8, 0);
             grad.addColorStop(0, '#353535');
@@ -255,9 +252,6 @@ function getWeaveBumpTexture(weaveType) {
     return tex;
 }
 
-/**
- * 2. CONFIGURACIÓN DEL ESCENARIO 3D (THREE.JS) CON ILUMINACIÓN DE ESTUDIO
- */
 function initThreeJS() {
     const container = document.getElementById('canvas3d-wrapper');
     const width = container.clientWidth;
@@ -278,7 +272,6 @@ function initThreeJS() {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
 
-    // Iluminación de estudio de 4 puntos para resaltar costuras y relieve de bordado
     const hemiLight = new THREE.HemisphereLight(0xfffdf9, 0xd7d0c5, 0.65);
     scene.add(hemiLight);
 
@@ -297,7 +290,6 @@ function initThreeJS() {
     rimLight.position.set(0, 3.5, -4.0);
     scene.add(rimLight);
 
-    // Materiales PBR con textura de tejido
     const initialBump = getWeaveBumpTexture(initialSpecs.weave);
 
     fabricMaterial = new THREE.MeshStandardMaterial({
@@ -331,7 +323,7 @@ function initThreeJS() {
     garmentGroup = new THREE.Group();
     scene.add(garmentGroup);
 
-    // Sombra de contacto suave bajo la prenda
+    // Malla de sombra
     const shadowCanvas = document.createElement('canvas');
     shadowCanvas.width = 128;
     shadowCanvas.height = 128;
@@ -351,120 +343,14 @@ function initThreeJS() {
     shadowPlane.position.y = -1.08;
     scene.add(shadowPlane);
 
-    buildGarmentModel(orderState.garmentType);
-    handleResponsiveViewport();
-
-    // Interacción de rotación y zoom en el visor (Mouse + Pantalla Táctil con pointer events)
-    container.addEventListener('pointerdown', (e) => {
-        isDragging = true;
-        previousMousePosition = { x: e.clientX, y: e.clientY };
-        if (container.setPointerCapture) {
-            try { container.setPointerCapture(e.pointerId); } catch (_) {}
-        }
-    });
-
-    window.addEventListener('pointermove', (e) => {
-        if (!isDragging) return;
-        const deltaX = e.clientX - previousMousePosition.x;
-        const deltaY = e.clientY - previousMousePosition.y;
-        targetRotationY += deltaX * 0.0085;
-        targetRotationX = Math.max(-0.42, Math.min(0.48, targetRotationX + deltaY * 0.0055));
-        previousMousePosition = { x: e.clientX, y: e.clientY };
-    });
-
-    window.addEventListener('pointerup', () => {
-        isDragging = false;
-    });
-
-    window.addEventListener('pointercancel', () => {
-        isDragging = false;
-    });
-
-    container.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        targetCameraZ = Math.max(1.85, Math.min(6.2, targetCameraZ + e.deltaY * 0.002));
-    }, { passive: false });
-
-    window.addEventListener('resize', handleResponsiveViewport);
-
-    animate3D();
-}
-
-/**
- * Calcula la distancia óptima de cámara Z según el ancho de pantalla (Mobile-First)
- * En celulares (< 768px) aleja la cámara a 5.4 para que las mangas largas nunca salgan recortadas.
- */
-function getResponsiveCameraZ(type) {
-    const spec = GARMENT_CATALOG[type] || GARMENT_CATALOG['long-shirt'];
-    const isHeadwear = spec.category === 'headwear';
-    if (window.innerWidth < 768) {
-        return isHeadwear ? 3.35 : 5.4;
-    } else if (window.innerWidth <= 1024) {
-        return isHeadwear ? 2.95 : 4.65;
-    }
-    return spec.cameraZ;
-}
-
-/**
- * Ajusta aspect ratio, tamaño del WebGLRenderer y posición Z de cámara en cambios de pantalla/orientación
- */
-function handleResponsiveViewport() {
-    const container = document.getElementById('canvas3d-wrapper');
-    if (!container || !camera || !renderer) return;
-
-    const w = container.clientWidth || window.innerWidth;
-    const h = container.clientHeight || 340;
-
-    camera.aspect = w / h;
-    targetCameraZ = getResponsiveCameraZ(orderState.garmentType);
-    camera.position.z = targetCameraZ;
-    camera.updateProjectionMatrix();
-    renderer.setSize(w, h);
-}
-
-/**
- * 3. ESCULTOR ANATÓMICO DE LOS 7 MODELOS 3D REALISTAS
- */
-function buildGarmentModel(type) {
-    while (garmentGroup.children.length > 0) {
-        garmentGroup.remove(garmentGroup.children[0]);
-    }
-
-    const spec = GARMENT_CATALOG[type] || GARMENT_CATALOG['long-shirt'];
-    const weaveBump = getWeaveBumpTexture(spec.weave);
-    fabricMaterial.bumpMap = weaveBump;
-    fabricMaterial.bumpScale = type === 'beanie' ? 0.038 : (type === 'polo' ? 0.024 : 0.016);
-    fabricMaterial.needsUpdate = true;
-
-    secondaryMaterial.bumpMap = weaveBump;
-    secondaryMaterial.bumpScale = type === 'beanie' ? 0.045 : 0.022;
-    secondaryMaterial.needsUpdate = true;
-
-    targetCameraZ = getResponsiveCameraZ(type);
-    targetCameraY = spec.cameraY;
-
-    if (type === 'cap') {
-        buildBaseballCap();
-        shadowPlane.position.y = -0.58;
-        shadowPlane.scale.set(0.75, 0.75, 1);
-    } else if (type === 'beanie') {
-        buildFishermanBeanie();
-        shadowPlane.position.y = -0.60;
-        shadowPlane.scale.set(0.72, 0.72, 1);
-    } else {
-        buildAnatomicalTop(type);
-        shadowPlane.position.y = -1.08;
-        shadowPlane.scale.set(1, 1, 1);
-    }
-
-    // Crear la malla subdividida (20x20) que se adhiere milimétricamente a la superficie 3D (Shrinkwrap)
+    // --- LOGO FIJO GLOBAL ---
     const embroideryCanvas = document.getElementById('embroidery-canvas');
     logoTexture = new THREE.CanvasTexture(embroideryCanvas);
     logoBumpTexture = new THREE.CanvasTexture(bumpCanvas);
 
     const logoGeo = new THREE.PlaneGeometry(1, 1, 20, 20);
-
     const isEmbroidery = orderState.technique === 'embroidery';
+
     const logoMat = new THREE.MeshStandardMaterial({
         map: logoTexture,
         bumpMap: logoBumpTexture,
@@ -482,12 +368,442 @@ function buildGarmentModel(type) {
     logoMesh = new THREE.Mesh(logoGeo, logoMat);
     logoMesh.renderOrder = 10;
     garmentGroup.add(logoMesh);
-    updateLogoTransform();
+
+    buildGarmentModel(orderState.garmentType);
+    handleResponsiveViewport();
+
+    container.addEventListener('pointerdown', (e) => {
+        isDragging = true;
+        previousMousePosition = { x: e.clientX, y: e.clientY };
+        if (container.setPointerCapture) {
+            try { container.setPointerCapture(e.pointerId); } catch (_) {}
+        }
+    });
+
+    window.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+        const deltaX = e.clientX - previousMousePosition.x;
+        const deltaY = e.clientY - previousMousePosition.y;
+        targetRotationY += deltaX * 0.0085;
+        targetRotationX = Math.max(-0.42, Math.min(0.48, targetRotationX + deltaY * 0.0055));
+        previousMousePosition = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('pointerup', () => { isDragging = false; });
+    window.addEventListener('pointercancel', () => { isDragging = false; });
+
+    container.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        targetCameraZ = Math.max(1.85, Math.min(6.2, targetCameraZ + e.deltaY * 0.002));
+    }, { passive: false });
+
+    window.addEventListener('resize', handleResponsiveViewport);
+
+    animate3D();
 }
 
-/**
- * Construye prendas superiores con escultura anatómica, cuellos realistas, puños y botones
- */
+function getResponsiveCameraZ(type) {
+    const spec = GARMENT_CATALOG[type] || GARMENT_CATALOG['long-shirt'];
+    const isHeadwear = spec.category === 'headwear';
+    if (window.innerWidth < 768) {
+        return isHeadwear ? 3.35 : 5.4;
+    } else if (window.innerWidth <= 1024) {
+        return isHeadwear ? 2.95 : 4.65;
+    }
+    return spec.cameraZ;
+}
+
+function handleResponsiveViewport() {
+    const container = document.getElementById('canvas3d-wrapper');
+    if (!container || !camera || !renderer) return;
+
+    const w = container.clientWidth || window.innerWidth;
+    const h = container.clientHeight || 340;
+
+    camera.aspect = w / h;
+    targetCameraZ = getResponsiveCameraZ(orderState.garmentType);
+    camera.position.z = targetCameraZ;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+}
+
+// Limpia el visor sin borrar nuestro logo
+function clearGarment() {
+    if (!garmentGroup) return;
+    for (let i = garmentGroup.children.length - 1; i >= 0; i--) {
+        const child = garmentGroup.children[i];
+        if (child !== logoMesh) {
+            garmentGroup.remove(child);
+        }
+    }
+}
+
+function buildGarmentModel(type) {
+    clearGarment();
+
+    const spec = GARMENT_CATALOG[type] || GARMENT_CATALOG['long-shirt'];
+    const weaveBump = getWeaveBumpTexture(spec.weave);
+    fabricMaterial.bumpMap = weaveBump;
+    fabricMaterial.bumpScale = type === 'beanie' ? 0.038 : (type === 'polo' ? 0.024 : 0.016);
+    fabricMaterial.needsUpdate = true;
+
+    secondaryMaterial.bumpMap = weaveBump;
+    secondaryMaterial.bumpScale = type === 'beanie' ? 0.045 : 0.022;
+    secondaryMaterial.needsUpdate = true;
+
+    targetCameraZ = getResponsiveCameraZ(type);
+    targetCameraY = spec.cameraY;
+
+    if (type === 'cap') {
+        loadRealCapModel();
+        shadowPlane.position.y = -0.45;
+        shadowPlane.scale.set(0.75, 0.75, 1);
+    } else if (type === 'beanie') {
+        buildFishermanBeanie();
+        shadowPlane.position.y = -0.60;
+        shadowPlane.scale.set(0.72, 0.72, 1);
+        updateLogoTransform();
+    } else if (type === 'tshirt') {
+        loadRealTShirtModel();
+        shadowPlane.position.y = -1.08;
+        shadowPlane.scale.set(1, 1, 1);
+    } else if (type === 'polo') {
+        loadRealPoloModel();
+        shadowPlane.position.y = -1.08;
+        shadowPlane.scale.set(1, 1, 1);
+    } else if (type === 'long-shirt') {
+        loadRealLongShirtModel();
+        shadowPlane.position.y = -1.08;
+        shadowPlane.scale.set(1, 1, 1);
+    } else {
+        buildAnatomicalTop(type);
+        shadowPlane.position.y = -1.08;
+        shadowPlane.scale.set(1, 1, 1);
+        updateLogoTransform();
+    }
+}
+
+function loadRealTShirtModel() {
+    gltfLoader.load(
+        '/assets/models/tshirt.gltf',
+        (gltf) => {
+            clearGarment(); 
+            const model = gltf.scene;
+            model.updateMatrixWorld(true);
+
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+
+            const targetScale = size.y > 0.001 ? 1.8 / size.y : 1.0;
+            model.scale.set(targetScale, targetScale, targetScale);
+
+            model.position.x = -center.x * targetScale;
+            model.position.y = (-center.y * targetScale) + 0.1;
+            model.position.z = -center.z * targetScale;
+
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    realShirtMesh = child;
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    child.material = new THREE.MeshStandardMaterial({
+                        color: new THREE.Color(orderState.fabricColor),
+                        roughness: 0.85,
+                        metalness: 0.04
+                    });
+                }
+            });
+
+            garmentGroup.add(model);
+            updateLogoTransform();
+
+            if (uploadedSourceImage) {
+                renderLogoEffect(uploadedSourceImage);
+            } else {
+                createDefaultEmbroideryBadge();
+            }
+        },
+        undefined,
+        (error) => { console.error('Error al cargar la playera real:', error); }
+    );
+}
+
+function loadRealPoloModel() {
+    gltfLoader.load( 
+        '/assets/models/polo.gltf',
+        (gltf) => {
+            clearGarment(); 
+            const model = gltf.scene;
+            model.updateMatrixWorld(true); 
+
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const targetScale = maxDim > 0.001 ? 1.8 / maxDim : 1.0;
+            model.scale.set(targetScale, targetScale, targetScale);
+
+            model.position.x = -center.x * targetScale;
+            model.position.y = (-center.y * targetScale) + 0.1;
+            model.position.z = -center.z * targetScale;
+
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    realShirtMesh = child;
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    child.material = new THREE.MeshStandardMaterial({
+                        color: new THREE.Color(orderState.fabricColor),
+                        roughness: 0.85,
+                        metalness: 0.04
+                    });
+                }
+            });
+
+            garmentGroup.add(model);
+            updateLogoTransform();
+
+            if (uploadedSourceImage) {
+                renderLogoEffect(uploadedSourceImage);
+            } else {
+                createDefaultEmbroideryBadge();
+            }
+        },
+        undefined,
+        (error) => { console.error('Error al cargar la playera polo:', error); }
+    );
+}
+
+function loadRealCapModel() {
+    // 1x1 pixel PNG transparente en base64 para silenciar el 404 de texturas externas
+    const dummy1px = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+
+    const capManager = new THREE.LoadingManager();
+    capManager.setURLModifier((url) => {
+        if (url.endsWith('.png') || url.endsWith('.jpg') || url.endsWith('.jpeg')) {
+            return dummy1px;
+        }
+        return url;
+    });
+
+    const capLoader = new THREE.GLTFLoader(capManager);
+
+    capLoader.load( 
+        '/assets/models/cap.gltf',
+        (gltf) => {
+            clearGarment(); 
+            const model = gltf.scene;
+            model.updateMatrixWorld(true); 
+
+            // Auto-escalado calibrado para gorra
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+
+            const targetScale = size.y > 0.001 ? 0.75 / size.y : 1.0;
+            model.scale.set(targetScale, targetScale, targetScale);
+
+            model.position.x = -center.x * targetScale;
+            model.position.y = (-center.y * targetScale) - 0.05;
+            model.position.z = -center.z * targetScale;
+
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    realShirtMesh = child;
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    child.material = new THREE.MeshStandardMaterial({
+                        color: new THREE.Color(orderState.fabricColor),
+                        roughness: 0.85,
+                        metalness: 0.04
+                    });
+                }
+            });
+
+            garmentGroup.add(model);
+            updateLogoTransform();
+
+            if (uploadedSourceImage) {
+                renderLogoEffect(uploadedSourceImage);
+            } else {
+                createDefaultEmbroideryBadge();
+            }
+        },
+        undefined,
+        (error) => { console.error('Error al cargar la gorra real:', error); }
+    );
+}
+
+function loadRealLongShirtModel() {
+    gltfLoader.load( 
+        '/assets/models/long-shirt.gltf', // O .glb
+        (gltf) => {
+            clearGarment(); 
+            const model = gltf.scene;
+
+            // Levantamos la camisa correctamente (90 grados en positivo sobre el eje X)
+            model.rotation.set(Math.PI / 2, 0, 0);
+            model.updateMatrixWorld(true);
+
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const targetScale = maxDim > 0.001 ? 1.8 / maxDim : 1.0;
+            model.scale.set(targetScale, targetScale, targetScale);
+
+            model.position.x = -center.x * targetScale;
+            model.position.y = (-center.y * targetScale) + 0.1;
+            model.position.z = -center.z * targetScale;
+
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    realShirtMesh = child;
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    child.material = new THREE.MeshStandardMaterial({
+                        color: new THREE.Color(orderState.fabricColor),
+                        roughness: 0.85,
+                        metalness: 0.04
+                    });
+                }
+            });
+
+            garmentGroup.add(model);
+            updateLogoTransform();
+
+            if (uploadedSourceImage) {
+                renderLogoEffect(uploadedSourceImage);
+            } else {
+                createDefaultEmbroideryBadge();
+            }
+        },
+        undefined,
+        (error) => { console.error('Error al cargar la camisa manga larga:', error); }
+    );
+}
+
+function updateAllGarmentColors(hexColor) {
+    const newColor = new THREE.Color(hexColor);
+
+    // 1. Materiales de prendas generadas por código
+    fabricMaterial.color.set(newColor);
+    secondaryMaterial.color.set(newColor).offsetHSL(0, 0, 0.025);
+
+    // 2. Mallas de modelos GLTF/GLB importados (Playera, Polo, Gorra)
+    if (garmentGroup) {
+        garmentGroup.traverse((child) => {
+            // Aseguramos no pintar el logo ni el plano de sombra
+            if (child.isMesh && child !== logoMesh && child !== shadowPlane) {
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(mat => mat.color.set(newColor));
+                    } else {
+                        child.material.color.set(newColor);
+                    }
+                }
+            }
+        });
+    }
+}
+
+function updateLogoTransform() {
+    if (!logoMesh || !garmentGroup) return;
+
+    // Reseteamos posición y rotación fija del mesh
+    logoMesh.position.set(0, 0, 0);
+    logoMesh.rotation.set(0, 0, 0);
+
+    const geo = logoMesh.geometry;
+    const pos = geo.attributes.position;
+    const count = pos.count;
+    const gridSegs = 20;
+    const cols = gridSegs + 1;
+
+    const savedPosY = garmentGroup.position.y;
+    const savedRotX = garmentGroup.rotation.x;
+    const savedRotY = garmentGroup.rotation.y;
+    garmentGroup.position.y = 0;
+    garmentGroup.rotation.set(0, 0, 0);
+    garmentGroup.updateMatrixWorld(true);
+
+    const targetMeshes = [];
+    garmentGroup.traverse(child => {
+        if (child.isMesh && child !== logoMesh && child !== shadowPlane) {
+            targetMeshes.push(child);
+        }
+    });
+
+    const isPolo = orderState.garmentType === 'polo';
+    const isTshirt = orderState.garmentType === 'tshirt';
+    const isHeadwear = orderState.garmentType === 'cap' || orderState.garmentType === 'beanie';
+    let centerZ = 0.285;
+    if (isPolo) centerZ = 0.38;
+    else if (isTshirt) centerZ = 0.36;
+    else if (isHeadwear) centerZ = 0.52;
+
+    const rawZ = new Float32Array(count);
+    const worldXArr = new Float32Array(count);
+    const worldYArr = new Float32Array(count);
+
+    for (let i = 0; i < count; i++) {
+        const ix = i % cols;
+        const iy = Math.floor(i / cols);
+        const u = (ix / gridSegs) - 0.5;
+        const v = 0.5 - (iy / gridSegs);
+
+        const wx = orderState.logoX + u * orderState.logoScale;
+        const wy = orderState.logoY + v * orderState.logoScale;
+        worldXArr[i] = wx;
+        worldYArr[i] = wy;
+
+        rayOrigin.set(wx, wy, 2.0);
+        rayDir.set(0, 0, -1);
+        surfaceRaycaster.set(rayOrigin, rayDir);
+        const hits = surfaceRaycaster.intersectObjects(targetMeshes, false);
+
+        if (hits.length > 0) {
+            rawZ[i] = hits[0].point.z;
+        } else {
+            const distSq = (u * orderState.logoScale) ** 2 + (v * orderState.logoScale) ** 2;
+            rawZ[i] = centerZ - distSq * 0.22;
+        }
+    }
+
+    const surfaceOffset = orderState.technique === 'embroidery' ? 0.005 : 0.002;
+
+    for (let iy = 0; iy < cols; iy++) {
+        for (let ix = 0; ix < cols; ix++) {
+            const idx = iy * cols + ix;
+            let sum = 0, n = 0;
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    const nx = ix + dx;
+                    const ny = iy + dy;
+                    if (nx >= 0 && nx < cols && ny >= 0 && ny < cols) {
+                        sum += rawZ[ny * cols + nx];
+                        n++;
+                    }
+                }
+            }
+            const smoothZ = sum / n;
+            const finalZ = Math.max(rawZ[idx], smoothZ) + surfaceOffset;
+            pos.setXYZ(idx, worldXArr[idx], worldYArr[idx], finalZ);
+        }
+    }
+
+    pos.needsUpdate = true;
+    geo.computeVertexNormals();
+
+    garmentGroup.position.y = savedPosY;
+    garmentGroup.rotation.x = savedRotX;
+    garmentGroup.rotation.y = savedRotY;
+    garmentGroup.updateMatrixWorld(true);
+}
+
 function buildAnatomicalTop(type) {
     const isHoodie = type === 'hoodie';
     const isTshirt = type === 'tshirt';
@@ -503,26 +819,21 @@ function buildAnatomicalTop(type) {
         let y = pos.getY(i);
         let z = pos.getZ(i);
 
-        // Redondeo cilíndrico de los costados del torso
         const edgeFactor = Math.abs(x) / (torsoW * 0.5);
         z *= (1 - Math.pow(edgeFactor, 2.4) * 0.28);
 
-        // Volumen pectoral y caída natural del tejido
         if (z > 0) {
             const chestCurve = Math.cos(x * 1.45) * 0.068;
             const verticalDrape = Math.sin((y + 0.8) * 1.8) * 0.025;
             z += chestCurve + verticalDrape;
         } else {
-            // Curvatura suave de espalda alta
             z -= Math.cos(x * 1.4) * 0.035;
         }
 
-        // Entalle ligero en cintura (excepto corte boxy de hoodie)
         if (!isHoodie && y < 0.2 && y > -0.6) {
             x *= 0.96 + Math.abs(y) * 0.04;
         }
 
-        // Caída anatómica de hombros
         if (y > 0.62) {
             y -= Math.pow(Math.abs(x), 1.35) * 0.18;
         }
@@ -535,7 +846,6 @@ function buildAnatomicalTop(type) {
     torsoMesh.receiveShadow = true;
     garmentGroup.add(torsoMesh);
 
-    // Interior oscuro del cuello
     const innerNeck = new THREE.Mesh(
         new THREE.CylinderGeometry(0.21, 0.21, 0.16, 32),
         new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 })
@@ -543,13 +853,11 @@ function buildAnatomicalTop(type) {
     innerNeck.position.set(0, 0.76, 0);
     garmentGroup.add(innerNeck);
 
-    // Variantes específicas por tipo de prenda superior
     if (type === 'long-shirt' || type === 'short-shirt') {
         const isLong = type === 'long-shirt';
         buildTailoredSleeves(isLong, false);
         buildFoldedShirtCollar();
 
-        // Tapeta central sastrera
         const placket = new THREE.Mesh(
             new THREE.BoxGeometry(0.085, 1.50, 0.025),
             secondaryMaterial
@@ -557,57 +865,15 @@ function buildAnatomicalTop(type) {
         placket.position.set(0, -0.02, 0.265);
         garmentGroup.add(placket);
 
-        // Botones nacarados a lo largo de la camisa
         for (let b = 0; b < 6; b++) {
             const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.012, 16), buttonMaterial);
             btn.rotation.x = Math.PI / 2;
             btn.position.set(0, 0.52 - b * 0.22, 0.282);
             garmentGroup.add(btn);
         }
-
-    } else if (type === 'tshirt') {
-        // Playera Crewneck Heavyweight: cuello redondo acanalado grueso + mangas relajadas
-        const crewCollar = new THREE.Mesh(
-            new THREE.TorusGeometry(0.235, 0.042, 18, 40),
-            secondaryMaterial
-        );
-        crewCollar.rotation.x = Math.PI / 2 + 0.18;
-        crewCollar.position.set(0, 0.76, 0.03);
-        garmentGroup.add(crewCollar);
-
-        buildTailoredSleeves(false, true);
-
-        // Dobladillo inferior con doble pespunte
-        const bottomHem = new THREE.Mesh(
-            new THREE.BoxGeometry(torsoW * 0.99, 0.07, torsoD * 0.96),
-            secondaryMaterial
-        );
-        bottomHem.position.set(0, -0.77, 0);
-        garmentGroup.add(bottomHem);
-
-    } else if (type === 'polo') {
-        buildFoldedShirtCollar();
-        buildTailoredSleeves(false, false, true);
-
-        // Aletilla de 3 botones de Polo
-        const poloPlacket = new THREE.Mesh(
-            new THREE.BoxGeometry(0.105, 0.42, 0.03),
-            secondaryMaterial
-        );
-        poloPlacket.position.set(0, 0.48, 0.265);
-        garmentGroup.add(poloPlacket);
-
-        for (let b = 0; b < 3; b++) {
-            const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.017, 0.012, 16), buttonMaterial);
-            btn.rotation.x = Math.PI / 2;
-            btn.position.set(0, 0.60 - b * 0.12, 0.285);
-            garmentGroup.add(btn);
-        }
-
     } else if (type === 'hoodie') {
         buildTailoredSleeves(true, true);
 
-        // Capucha escultórica de doble panel
         const hoodOuter = new THREE.Mesh(
             new THREE.SphereGeometry(0.41, 32, 28),
             secondaryMaterial
@@ -616,7 +882,6 @@ function buildAnatomicalTop(type) {
         hoodOuter.position.set(0, 0.94, -0.09);
         garmentGroup.add(hoodOuter);
 
-        // Cuello envolvente frontal de la capucha
         const hoodCollar = new THREE.Mesh(
             new THREE.TorusGeometry(0.26, 0.065, 16, 32, Math.PI * 1.15),
             secondaryMaterial
@@ -625,7 +890,6 @@ function buildAnatomicalTop(type) {
         hoodCollar.position.set(0, 0.77, 0.06);
         garmentGroup.add(hoodCollar);
 
-        // Cordones de algodón con herrajes metálicos (aglets)
         [-0.09, 0.09].forEach(xCord => {
             const cord = new THREE.Mesh(
                 new THREE.CylinderGeometry(0.012, 0.012, 0.36, 12),
@@ -642,13 +906,12 @@ function buildAnatomicalTop(type) {
             garmentGroup.add(aglet);
         });
 
-        // Bolsillo canguro biselado
         const pocketGeo = new THREE.BoxGeometry(0.78, 0.38, 0.055, 8, 8, 4);
         const pPos = pocketGeo.attributes.position;
         for (let i = 0; i < pPos.count; i++) {
             const py = pPos.getY(i);
             let px = pPos.getX(i);
-            if (py > 0.02) px *= 0.82; // Entrada inclinada para las manos
+            if (py > 0.02) px *= 0.82;
             pPos.setX(i, px);
         }
         pocketGeo.computeVertexNormals();
@@ -656,7 +919,6 @@ function buildAnatomicalTop(type) {
         pocket.position.set(0, -0.40, 0.268);
         garmentGroup.add(pocket);
 
-        // Pretina acanalada inferior
         const waistRib = new THREE.Mesh(
             new THREE.BoxGeometry(torsoW * 0.97, 0.14, torsoD * 0.94),
             secondaryMaterial
@@ -666,9 +928,6 @@ function buildAnatomicalTop(type) {
     }
 }
 
-/**
- * Construye cuello camisero con banda y solapas dobladas
- */
 function buildFoldedShirtCollar() {
     const band = new THREE.Mesh(
         new THREE.CylinderGeometry(0.245, 0.265, 0.16, 32, 1, true),
@@ -677,7 +936,6 @@ function buildFoldedShirtCollar() {
     band.position.set(0, 0.80, 0);
     garmentGroup.add(band);
 
-    // Solapas izquierda y derecha del cuello
     [-1, 1].forEach(dir => {
         const lapel = new THREE.Mesh(
             new THREE.BoxGeometry(0.19, 0.13, 0.025),
@@ -691,9 +949,6 @@ function buildFoldedShirtCollar() {
     });
 }
 
-/**
- * Construye mangas esculpidas con puños realistas
- */
 function buildTailoredSleeves(isLong, isRelaxed = false, hasPoloRib = false) {
     const sleeveLen = isLong ? 1.18 : (isRelaxed ? 0.54 : 0.46);
     const topRadius = isRelaxed ? 0.245 : 0.215;
@@ -702,7 +957,6 @@ function buildTailoredSleeves(isLong, isRelaxed = false, hasPoloRib = false) {
     [-1, 1].forEach(side => {
         const sleeveGroup = new THREE.Group();
 
-        // Hombro redondeado para unión sin huecos
         const shoulderCap = new THREE.Mesh(
             new THREE.SphereGeometry(topRadius * 0.98, 20, 20),
             fabricMaterial
@@ -717,7 +971,6 @@ function buildTailoredSleeves(isLong, isRelaxed = false, hasPoloRib = false) {
         sleeveCyl.castShadow = true;
         sleeveGroup.add(sleeveCyl);
 
-        // Puño sastrero o rib acanalado
         if (isLong || hasPoloRib) {
             const cuffH = isLong ? 0.13 : 0.06;
             const cuff = new THREE.Mesh(
@@ -738,20 +991,15 @@ function buildTailoredSleeves(isLong, isRelaxed = false, hasPoloRib = false) {
     });
 }
 
-/**
- * Construye el modelo 3D de Gorra Estructurada de 6 Paneles (Baseball / Snapback)
- */
 function buildBaseballCap() {
     const capGroup = new THREE.Group();
 
-    // Corona semiesférica de 6 paneles
     const crownGeo = new THREE.SphereGeometry(0.50, 36, 24, 0, Math.PI * 2, 0, Math.PI * 0.56);
     const cPos = crownGeo.attributes.position;
     for (let i = 0; i < cPos.count; i++) {
         let x = cPos.getX(i);
         let y = cPos.getY(i);
         let z = cPos.getZ(i);
-        // Frente estructurado ligeramente más alto (perfil Pro-Crown)
         if (z > 0 && y > 0.08) {
             y += z * 0.07;
         }
@@ -763,7 +1011,6 @@ function buildBaseballCap() {
     crown.castShadow = true;
     capGroup.add(crown);
 
-    // Costuras de los 6 paneles y ojales de ventilación
     for (let p = 0; p < 6; p++) {
         const angle = (p * Math.PI) / 3;
         const seam = new THREE.Mesh(
@@ -776,7 +1023,6 @@ function buildBaseballCap() {
         capGroup.add(seam);
     }
 
-    // Botón superior forrado (Squatchee)
     const topButton = new THREE.Mesh(
         new THREE.CylinderGeometry(0.042, 0.042, 0.025, 20),
         secondaryMaterial
@@ -784,7 +1030,6 @@ function buildBaseballCap() {
     topButton.position.set(0, 0.38, 0);
     capGroup.add(topButton);
 
-    // Banda inferior de ajuste
     const sweatBand = new THREE.Mesh(
         new THREE.TorusGeometry(0.49, 0.024, 14, 42),
         secondaryMaterial
@@ -793,7 +1038,6 @@ function buildBaseballCap() {
     sweatBand.position.set(0, -0.14, 0);
     capGroup.add(sweatBand);
 
-    // Visera curva anatómica con costuras concéntricas
     const visorGeo = new THREE.BoxGeometry(0.86, 0.028, 0.54, 28, 4, 16);
     const vPos = visorGeo.attributes.position;
     for (let i = 0; i < vPos.count; i++) {
@@ -801,13 +1045,9 @@ function buildBaseballCap() {
         let vy = vPos.getY(i);
         let vz = vPos.getZ(i);
 
-        // Redondear la punta delantera de la visera
         const frontFactor = (vz + 0.27) / 0.54;
         vx *= (1 - Math.pow(frontFactor, 1.9) * 0.28);
-
-        // Curvatura transversal clásica de visera
         vy -= Math.pow(vx, 2) * 0.42;
-        // Inclinación frontal hacia abajo
         vy -= frontFactor * 0.09;
 
         vPos.setXYZ(i, vx, vy, vz);
@@ -821,13 +1061,9 @@ function buildBaseballCap() {
     garmentGroup.add(capGroup);
 }
 
-/**
- * Construye el modelo 3D de Gorro Tejido Beanie (Fisherman Ribbed)
- */
 function buildFishermanBeanie() {
     const beanieGroup = new THREE.Group();
 
-    // Cúpula tejida con pliegues superiores
     const domeGeo = new THREE.SphereGeometry(0.47, 36, 28, 0, Math.PI * 2, 0, Math.PI * 0.62);
     const dPos = domeGeo.attributes.position;
     for (let i = 0; i < dPos.count; i++) {
@@ -836,7 +1072,6 @@ function buildFishermanBeanie() {
         let z = dPos.getZ(i);
 
         const angle = Math.atan2(z, x);
-        // Surcos verticales del tejido de punto y pinzas superiores
         const ribWave = Math.sin(angle * 28) * 0.008;
         const pinch = y > 0.25 ? Math.cos(angle * 4) * 0.015 : 0;
         x += Math.cos(angle) * (ribWave + pinch);
@@ -850,7 +1085,6 @@ function buildFishermanBeanie() {
     dome.castShadow = true;
     beanieGroup.add(dome);
 
-    // Doblez frontal grueso (Folded Cuff) donde va el bordado o parche
     const cuffGeo = new THREE.CylinderGeometry(0.495, 0.485, 0.27, 48, 12);
     const cPos = cuffGeo.attributes.position;
     for (let i = 0; i < cPos.count; i++) {
@@ -858,9 +1092,7 @@ function buildFishermanBeanie() {
         let y = cPos.getY(i);
         let z = cPos.getZ(i);
         const angle = Math.atan2(z, x);
-        // Textura acanalada pronunciada en el doblez
         const rib = Math.sin(angle * 32) * 0.011;
-        // Suavizado de los bordes superior e inferior del doblez
         const edgeRound = Math.cos((y / 0.135) * 1.1) * 0.018;
         x += Math.cos(angle) * (rib + edgeRound);
         z += Math.sin(angle) * (rib + edgeRound);
@@ -877,106 +1109,6 @@ function buildFishermanBeanie() {
     garmentGroup.add(beanieGroup);
 }
 
-const surfaceRaycaster = new THREE.Raycaster();
-const rayOrigin = new THREE.Vector3();
-const rayDir = new THREE.Vector3(0, 0, -1);
-
-/**
- * Proyecta cada vértice de la malla del logotipo directamente sobre la superficie 3D de la prenda (Shrinkwrap).
- * Así el bordado/estampado abraza la curvatura exacta del pecho, pliegues, gorra o beanie sin flotar ni hundirse.
- */
-function updateLogoTransform() {
-    if (!logoMesh || !garmentGroup) return;
-
-    // Guardar transformación actual del grupo para lanzar rayos en espacio local canónico
-    const savedPosY = garmentGroup.position.y;
-    const savedRotX = garmentGroup.rotation.x;
-    const savedRotY = garmentGroup.rotation.y;
-
-    garmentGroup.position.y = 0;
-    garmentGroup.rotation.set(0, 0, 0);
-    garmentGroup.updateMatrixWorld(true);
-
-    const targetMeshes = garmentGroup.children.filter(child => child !== logoMesh);
-
-    const geo = logoMesh.geometry;
-    const pos = geo.attributes.position;
-    const gridSegs = 20;
-    const cols = gridSegs + 1;
-    const count = pos.count;
-
-    // 1. Obtener Z de referencia en el centro del logotipo
-    rayOrigin.set(orderState.logoX, orderState.logoY, 2.0);
-    surfaceRaycaster.set(rayOrigin, rayDir);
-    const centerHits = surfaceRaycaster.intersectObjects(targetMeshes, true);
-    const fallbackZ = (orderState.garmentType === 'cap' || orderState.garmentType === 'beanie') ? 0.49 : 0.285;
-    const centerZ = centerHits.length > 0 ? centerHits[0].point.z : fallbackZ;
-
-    const rawZ = new Float32Array(count);
-    const worldXArr = new Float32Array(count);
-    const worldYArr = new Float32Array(count);
-
-    // 2. Proyectar cada vértice de la cuadrícula 21x21 sobre la capa frontal de la prenda
-    for (let i = 0; i < count; i++) {
-        const ix = i % cols;
-        const iy = Math.floor(i / cols);
-        const u = (ix / gridSegs) - 0.5;
-        const v = 0.5 - (iy / gridSegs);
-
-        const wx = orderState.logoX + u * orderState.logoScale;
-        const wy = orderState.logoY + v * orderState.logoScale;
-        worldXArr[i] = wx;
-        worldYArr[i] = wy;
-
-        rayOrigin.set(wx, wy, 2.0);
-        surfaceRaycaster.set(rayOrigin, rayDir);
-        const hits = surfaceRaycaster.intersectObjects(targetMeshes, true);
-
-        if (hits.length > 0 && hits[0].point.z > centerZ - 0.14) {
-            rawZ[i] = hits[0].point.z;
-        } else {
-            // Extrapolación suave si el borde del logo se acerca a la silueta
-            const distSq = (u * orderState.logoScale) ** 2 + (v * orderState.logoScale) ** 2;
-            rawZ[i] = centerZ - distSq * 0.22;
-        }
-    }
-
-    // 3. Suavizado de superficie para evitar escalones bruscos en botones/costuras sin hundirse jamás
-    const surfaceOffset = orderState.technique === 'embroidery' ? 0.0032 : 0.0022;
-    for (let iy = 0; iy < cols; iy++) {
-        for (let ix = 0; ix < cols; ix++) {
-            const idx = iy * cols + ix;
-            let sum = 0;
-            let n = 0;
-            for (let dy = -1; dy <= 1; dy++) {
-                for (let dx = -1; dx <= 1; dx++) {
-                    const nx = ix + dx;
-                    const ny = iy + dy;
-                    if (nx >= 0 && nx < cols && ny >= 0 && ny < cols) {
-                        sum += rawZ[ny * cols + nx];
-                        n++;
-                    }
-                }
-            }
-            const smoothZ = sum / n;
-            const finalZ = Math.max(rawZ[idx], smoothZ) + surfaceOffset;
-            pos.setXYZ(idx, worldXArr[idx], worldYArr[idx], finalZ);
-        }
-    }
-
-    pos.needsUpdate = true;
-    geo.computeVertexNormals();
-
-    // Restaurar rotación y posición del grupo 3D
-    garmentGroup.position.y = savedPosY;
-    garmentGroup.rotation.x = savedRotX;
-    garmentGroup.rotation.y = savedRotY;
-    garmentGroup.updateMatrixWorld(true);
-}
-
-/**
- * Bucle de renderizado con interpolación suave de cámara y rotación
- */
 function animate3D() {
     requestAnimationFrame(animate3D);
 
@@ -992,9 +1124,6 @@ function animate3D() {
     renderer.render(scene, camera);
 }
 
-/**
- * 4. ANALIZADOR IA Y MOTOR DUAL: BORDADO 3D vs ESTAMPADO HD
- */
 function analyzeLogoWithAI(imgElement, autoSwitchIfRecommended = false) {
     const sampleCanvas = document.createElement('canvas');
     sampleCanvas.width = 96;
@@ -1011,7 +1140,6 @@ function analyzeLogoWithAI(imgElement, autoSwitchIfRecommended = false) {
         const isWhiteBg = orderState.removeWhiteBg && r > 240 && g > 240 && b > 240;
         if (a > 40 && !isWhiteBg) {
             activePixels++;
-            // Cuantizar colores para medir complejidad cromática/degradados
             const key = `${Math.floor(r / 32)}-${Math.floor(g / 32)}-${Math.floor(b / 32)}`;
             colorBuckets.add(key);
         }
@@ -1023,28 +1151,28 @@ function analyzeLogoWithAI(imgElement, autoSwitchIfRecommended = false) {
 
     if (distinctTones > 26) {
         confBadge.textContent = `${distinctTones} tonos detectados`;
-        diagText.innerHTML = `Diseño policromático / con degradados detectado. La IA recomienda <strong>Estampado HD (DTF / Serigrafía)</strong> para fidelidad fotográfica o <strong>Bordado 3D</strong> para texturizado artístico.`;
+        diagText.innerHTML = 'Diseño policromático / con degradados detectado. ' +
+                             'La IA recomienda <strong>Estampado HD (DTF / Serigrafía)</strong> ' +
+                             'para fidelidad fotográfica o <strong>Bordado 3D</strong> para texturizado artístico.';
         if (autoSwitchIfRecommended) {
             setTechniqueMode('print');
         }
     } else {
-        confBadge.textContent = `Vectorial / Sólido`;
-        diagText.innerHTML = `Logotipo de trazos definidos (${Math.max(1, Math.min(12, Math.round(distinctTones / 2)))} hilos base). Ideal tanto para <strong>Bordado 3D con relieve</strong> como para <strong>Estampado Serigráfico</strong>.`;
+        confBadge.textContent = 'Vectorial / Sólido';
+        const hilos = Math.max(1, Math.min(12, Math.round(distinctTones / 2)));
+        diagText.innerHTML = `Logotipo de trazos definidos (${hilos} hilos base). ` +
+                             `Ideal tanto para <strong>Bordado 3D con relieve</strong> ` +
+                             `como para <strong>Estampado Serigráfico</strong>.`;
     }
 }
 
-/**
- * Procesa la imagen según la técnica activa:
- * - 'embroidery': Genera puntadas Tatami/Satín con relieve real + BumpMap 3D de alta profundidad.
- * - 'print': Genera acabado de tinta serigráfica / DTF sobre la trama textil sin costuras de hilo.
- */
 function renderLogoEffect(imgElement) {
     if (!imgElement) return;
 
     const canvas = document.getElementById('embroidery-canvas');
     const ctx = canvas.getContext('2d');
     const bCtx = bumpCanvas.getContext('2d');
-    const size = canvas.width; // 320x320
+    const size = canvas.width;
 
     ctx.clearRect(0, 0, size, size);
     bCtx.fillStyle = '#000000';
@@ -1065,14 +1193,12 @@ function renderLogoEffect(imgElement) {
     const srcImgData = tempCtx.getImageData(0, 0, size, size);
     const imgData = srcImgData.data;
 
-    // Limpieza inteligente de fondo blanco si está activa
     if (orderState.removeWhiteBg) {
         for (let i = 0; i < imgData.length; i += 4) {
             const r = imgData[i], g = imgData[i + 1], b = imgData[i + 2];
             if (r > 242 && g > 242 && b > 242) {
                 imgData[i + 3] = 0;
             } else if (r > 225 && g > 225 && b > 225) {
-                // Suavizado antialiasing en bordes claros
                 imgData[i + 3] = Math.round(imgData[i + 3] * 0.35);
             }
         }
@@ -1080,7 +1206,6 @@ function renderLogoEffect(imgElement) {
     }
 
     if (orderState.technique === 'embroidery') {
-        // MODO 1: BORDADO 3D DE ALTA PRECISIÓN
         const step = parseInt(orderState.stitchDensity, 10);
         let stitches = 0;
 
@@ -1099,7 +1224,6 @@ function renderLogoEffect(imgElement) {
 
                 if (a > 45) {
                     stitches++;
-                    // Brillo anisotrópico de hilo rayon
                     const threadWave = Math.sin((x * 0.35) + (y * 0.25));
                     const shine = threadWave > 0 ? 22 : -14;
                     const tr = Math.min(255, Math.max(0, r + shine));
@@ -1116,7 +1240,6 @@ function renderLogoEffect(imgElement) {
                     ctx.lineTo(x + step * 0.48, y + step * 0.36 - jitter);
                     ctx.stroke();
 
-                    // Dibujar la puntada en el BumpMap para relieve 3D real en Three.js
                     const bumpVal = threadWave > 0 ? 245 : 175;
                     bCtx.strokeStyle = `rgb(${bumpVal},${bumpVal},${bumpVal})`;
                     bCtx.lineWidth = step * 0.85;
@@ -1134,17 +1257,14 @@ function renderLogoEffect(imgElement) {
         document.getElementById('stitch-count').textContent = `~${orderState.stitchCount.toLocaleString()} puntadas`;
 
     } else {
-        // MODO 2: ESTAMPADO HD (SERIGRAFÍA / DTF TEXTIL)
         ctx.shadowColor = 'rgba(0, 0, 0, 0.12)';
         ctx.shadowBlur = 1;
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 0;
 
-        // Dibujar imagen nítida con saturación de tinta serigráfica
         ctx.drawImage(tempCanvas, 0, 0);
 
-        // Aplicar micro-trama textil sobre la tinta según el acabado seleccionado en el slider
-        const printFinish = parseInt(orderState.stitchDensity, 10); // 2..6
+        const printFinish = parseInt(orderState.stitchDensity, 10);
         const printData = ctx.getImageData(0, 0, size, size);
         const pPixels = printData.data;
         let inkPixels = 0;
@@ -1155,11 +1275,9 @@ function renderLogoEffect(imgElement) {
                 const a = pPixels[idx + 3];
                 if (a > 35) {
                     inkPixels++;
-                    // Micro-poro de tela o semitono serigráfico si el usuario elige acabado Vintage (5-6)
                     if (printFinish >= 5 && ((x + y) % 3 === 0)) {
                         pPixels[idx + 3] = Math.round(a * 0.78);
                     } else {
-                        // Realce de contraste de tinta DTF/Plastisol
                         pPixels[idx] = Math.min(255, Math.round(pPixels[idx] * 1.04));
                         pPixels[idx + 1] = Math.min(255, Math.round(pPixels[idx + 1] * 1.04));
                         pPixels[idx + 2] = Math.min(255, Math.round(pPixels[idx + 2] * 1.04));
@@ -1168,8 +1286,6 @@ function renderLogoEffect(imgElement) {
             }
         }
         ctx.putImageData(printData, 0, 0);
-
-        // En modo Estampado, el BumpMap es uniforme y muy sutil (capa fina de tinta sobre tela)
         bCtx.drawImage(tempCanvas, 0, 0);
 
         const cmSide = Math.round(orderState.logoScale * 35);
@@ -1192,9 +1308,6 @@ function renderLogoEffect(imgElement) {
     }
 }
 
-/**
- * Crea el monograma por defecto al iniciar el estudio
- */
 function createDefaultEmbroideryBadge() {
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = 320;
@@ -1227,9 +1340,6 @@ function createDefaultEmbroideryBadge() {
     defaultImg.src = tempCanvas.toDataURL();
 }
 
-/**
- * Cambia entre modo Bordado 3D y modo Estampado HD actualizando la UI y el material 3D
- */
 function setTechniqueMode(tech) {
     orderState.technique = tech;
     orderState.techniqueName = tech === 'embroidery'
@@ -1261,9 +1371,6 @@ function setTechniqueMode(tech) {
     }
 }
 
-/**
- * Actualiza los botones de posición rápida según si es prenda superior o gorra/gorro
- */
 function updatePresetButtonsForGarment(type) {
     const presetRow = document.getElementById('preset-row');
     if (type === 'cap' || type === 'beanie') {
@@ -1290,23 +1397,44 @@ function bindPresetButtons() {
 
             const pos = btn.dataset.pos;
             const isBeanie = orderState.garmentType === 'beanie';
+            const isPolo = orderState.garmentType === 'polo';
+            const isTshirt = orderState.garmentType === 'tshirt';
+            const isLongShirt = orderState.garmentType === 'long-shirt'; // <-- Nueva variable
 
             if (pos === 'left-chest') {
-                orderState.logoX = 0.22;
-                orderState.logoY = 0.20;
-                orderState.logoScale = 0.26;
+                if (isLongShirt) {
+                    orderState.logoX = 0.18;
+                    orderState.logoY = 0.28;
+                    orderState.logoScale = 0.23;
+                } else {
+                    orderState.logoX = isPolo ? 0.22 : (isTshirt ? 0.25 : 0.27);
+                    orderState.logoY = isPolo ? 0.42 : (isTshirt ? 0.48 : 0.51);
+                    orderState.logoScale = 0.26;
+                }
             } else if (pos === 'center') {
-                orderState.logoX = 0.0;
-                orderState.logoY = 0.14;
-                orderState.logoScale = 0.44;
+                if (isLongShirt) {
+                    orderState.logoX = 0.00;
+                    orderState.logoY = 0.24;
+                    orderState.logoScale = 0.26;
+                } else {
+                    orderState.logoX = 0.0;
+                    orderState.logoY = isPolo ? 0.28 : 0.41;
+                    orderState.logoScale = isPolo ? 0.38 : 0.44;
+                }
             } else if (pos === 'right-chest') {
-                orderState.logoX = -0.22;
-                orderState.logoY = 0.20;
-                orderState.logoScale = 0.26;
+                if (isLongShirt) {
+                    orderState.logoX = -0.18;
+                    orderState.logoY = 0.28;
+                    orderState.logoScale = 0.23;
+                } else {
+                    orderState.logoX = isPolo ? -0.22 : (isTshirt ? -0.25 : -0.27);
+                    orderState.logoY = isPolo ? 0.42 : (isTshirt ? 0.48 : 0.51);
+                    orderState.logoScale = isPolo ? 0.26 : 0.34;
+                }
             } else if (pos === 'front-center') {
                 orderState.logoX = 0.0;
-                orderState.logoY = isBeanie ? -0.17 : 0.06;
-                orderState.logoScale = isBeanie ? 0.28 : 0.32;
+                orderState.logoY = isBeanie ? -0.17 : -0.08;
+                orderState.logoScale = isBeanie ? 0.28 : 0.37;
             } else if (pos === 'side-left') {
                 orderState.logoX = 0.22;
                 orderState.logoY = isBeanie ? -0.17 : 0.04;
@@ -1330,12 +1458,10 @@ function syncSlidersWithState() {
     document.getElementById('logo-scale').value = orderState.logoScale;
     document.getElementById('val-x').textContent = orderState.logoX.toFixed(2);
     document.getElementById('val-y').textContent = orderState.logoY.toFixed(2);
-    document.getElementById('val-scale').textContent = `${Math.round(orderState.logoScale * 35)} cm`;
+    const cm = Math.round(orderState.logoScale * 35);
+    document.getElementById('val-scale').textContent = `${cm} cm`;
 }
 
-/**
- * Calcula el precio dinámico según prenda base, tamaño del diseño y técnica
- */
 function updateDynamicPricing() {
     const scaleSurcharge = orderState.logoScale > 0.35
         ? Math.round((orderState.logoScale - 0.35) * 320)
@@ -1349,11 +1475,7 @@ function updateDynamicPricing() {
     }
 }
 
-/**
- * 5. EVENTOS DE INTERFAZ Y SINCRONIZACIÓN
- */
 function initUIEvents() {
-    // Sincronizar UI inicial con estado restaurado
     document.querySelectorAll('.garment-card').forEach(c => {
         c.classList.toggle('active', c.dataset.model === orderState.garmentType);
     });
@@ -1364,7 +1486,6 @@ function initUIEvents() {
     syncSlidersWithState();
     setTechniqueMode(orderState.technique);
 
-    // Filtro por pestañas de categoría (Todos / Tops / Gorras y Gorros)
     document.querySelectorAll('.cat-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
@@ -1380,7 +1501,6 @@ function initUIEvents() {
         });
     });
 
-    // Selección entre los 7 modelos 3D
     document.querySelectorAll('.garment-card').forEach(card => {
         card.addEventListener('click', () => {
             document.querySelectorAll('.garment-card').forEach(c => c.classList.remove('active'));
@@ -1406,34 +1526,26 @@ function initUIEvents() {
         });
     });
 
-    // Selección de técnica: Bordado 3D vs Estampado HD
     document.querySelectorAll('.tech-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             setTechniqueMode(btn.dataset.technique);
         });
     });
 
-    // Cambio de color textil
     document.querySelectorAll('.swatch').forEach(swatch => {
-        if (swatch.dataset.color.toLowerCase() === orderState.fabricColor.toLowerCase()) {
-            document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
-            swatch.classList.add('active');
-            document.getElementById('fabric-color-name').textContent = swatch.dataset.name;
-        }
-        swatch.addEventListener('click', () => {
-            document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
-            swatch.classList.add('active');
+    swatch.addEventListener('click', () => {
+        document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+        swatch.classList.add('active');
 
-            orderState.fabricColor = swatch.dataset.color;
-            orderState.fabricColorName = swatch.dataset.name;
-            document.getElementById('fabric-color-name').textContent = swatch.dataset.name;
+        orderState.fabricColor = swatch.dataset.color;
+        orderState.fabricColorName = swatch.dataset.name;
+        document.getElementById('fabric-color-name').textContent = swatch.dataset.name;
 
-            fabricMaterial.color.set(orderState.fabricColor);
-            secondaryMaterial.color.set(orderState.fabricColor).offsetHSL(0, 0, 0.025);
-        });
+        // Llamamos a la función global que pinta tanto modelos GLTF como procedurales
+        updateAllGarmentColors(orderState.fabricColor);
     });
+});
 
-    // Botones del visor 3D (Centrar Cámara y Malla 3D)
     document.getElementById('reset-camera-btn').addEventListener('click', () => {
         targetRotationY = 0;
         targetRotationX = 0.06;
@@ -1447,7 +1559,6 @@ function initUIEvents() {
         secondaryMaterial.wireframe = isWireframe;
     });
 
-    // Toggle de remoción inteligente de fondo blanco
     document.getElementById('remove-bg-toggle').addEventListener('change', (e) => {
         orderState.removeWhiteBg = e.target.checked;
         if (uploadedSourceImage) {
@@ -1455,7 +1566,6 @@ function initUIEvents() {
         }
     });
 
-    // Subida de logotipo y procesamiento IA
     const fileInput = document.getElementById('logo-upload');
     fileInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
@@ -1482,7 +1592,6 @@ function initUIEvents() {
         reader.readAsDataURL(file);
     });
 
-    // Sliders de posición, tamaño y densidad/acabado
     document.getElementById('logo-x').addEventListener('input', (e) => {
         orderState.logoX = parseFloat(e.target.value);
         document.getElementById('val-x').textContent = orderState.logoX.toFixed(2);
@@ -1503,12 +1612,11 @@ function initUIEvents() {
         updateDynamicPricing();
     });
 
-    document.getElementById('stitch-density').addEventListener('input', (e) => {
+    document.getElementById('stitch-density').addEventListener('change', (e) => {
         orderState.stitchDensity = parseInt(e.target.value, 10);
         setTechniqueMode(orderState.technique);
     });
 
-    // Continuar con el pedido -> Login
     document.getElementById('continue-order-btn').addEventListener('click', () => {
         localStorage.setItem('atelier_custom_order', JSON.stringify(orderState));
         window.location.href = '../login/login.html';
