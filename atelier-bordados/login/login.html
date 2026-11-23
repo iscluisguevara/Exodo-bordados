@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ATELIER HILO — Registro y Confirmación de Pedido</title>
+    <title>ATELIER HILO — Carrito, Registro y Checkout</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Librería Oficial de Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <link rel="stylesheet" href="login.css">
@@ -14,118 +14,320 @@
 </head>
 <body>
 
-    <div class="split-layout">
-        
-        <!-- Mitad Izquierda: Resumen Editorial de la Prenda Configurada en Home / Models -->
+    <div class="split-layout no-print">
+
+        <!-- ==================================================================
+             MITAD IZQUIERDA: CARRITO MÚLTIPLE + CUPONES + DESGLOSE FISCAL
+             ================================================================== -->
         <aside class="order-summary-side">
-            <div style="display: flex; gap: 1.5rem;">
-                <a href="../Models/models.html" class="back-link">← Volver al Estudio 3D</a>
+            <div class="top-nav-row">
+                <a href="../Models/models.html" class="back-link">← Estudio 3D (+ Agregar)</a>
                 <a href="../home/index.html" class="back-link">Inicio</a>
             </div>
 
             <div class="summary-card">
-                <p class="eyebrow">FICHA TÉCNICA DE TALLER</p>
-                <h1 class="summary-title">Tu Diseño <em>Personalizado</em></h1>
-
-                <div class="embroidery-badge-preview">
-                    <img id="summary-embroidery-img" src="" alt="Previsualización de diseño IA">
-                    <span class="preview-caption" id="summary-badge-caption">MATRIZ PROCESADA CON IA</span>
+                <div class="summary-header-row">
+                    <div>
+                        <p class="eyebrow">CARRITO DE PRODUCCIÓN</p>
+                        <h1 class="summary-title">Tu <em>Pedido</em></h1>
+                    </div>
+                    <span class="cart-count-pill" id="cart-items-count">0 artículos</span>
                 </div>
 
-                <dl class="specs-table">
+                <!-- Lista dinámica de múltiples artículos del carrito (cartItems) -->
+                <div id="cart-items-list" class="cart-items-list"></div>
+
+                <!-- Estado vacío del carrito -->
+                <div id="cart-empty-state" class="cart-empty hidden">
+                    <p>Tu carrito está vacío.</p>
+                    <a href="../Models/models.html" class="btn-outline-light">Configurar prenda en 3D →</a>
+                </div>
+
+                <!-- Cupón de Descuento (RF-13) -->
+                <div class="coupon-section">
+                    <label for="coupon-code-input" class="eyebrow">CUPÓN DE DESCUENTO</label>
+                    <div class="coupon-input-row">
+                        <input type="text" id="coupon-code-input" placeholder="Ej. EXODO10, ATELIER150, MAYOREO20" autocomplete="off">
+                        <button type="button" id="apply-coupon-btn" class="btn-coupon">Aplicar</button>
+                    </div>
+                    <div id="coupon-feedback" class="coupon-feedback hidden"></div>
+                </div>
+
+                <!-- Desglose Financiero: Subtotal, Descuento, IVA (16%) y Total Final -->
+                <dl class="specs-table totals-table">
                     <div class="spec-row">
-                        <dt>Prenda / Accesorio</dt>
-                        <dd id="spec-garment">Camisa Manga Larga Oxford</dd>
+                        <dt>Subtotal</dt>
+                        <dd id="summary-subtotal">$0 MXN</dd>
+                    </div>
+                    <div class="spec-row hidden" id="summary-discount-row">
+                        <dt>
+                            Descuento <span id="applied-coupon-badge" class="coupon-tag"></span>
+                            <button type="button" id="remove-coupon-btn" class="btn-remove-coupon" title="Quitar cupón">✕</button>
+                        </dt>
+                        <dd id="summary-discount" class="discount-value">-$0 MXN</dd>
                     </div>
                     <div class="spec-row">
-                        <dt>Técnica Seleccionada</dt>
-                        <dd id="spec-technique">Bordado 3D de Alta Precisión</dd>
-                    </div>
-                    <div class="spec-row">
-                        <dt>Color Textil</dt>
-                        <dd><span id="spec-color-dot" class="color-dot"></span> <span id="spec-color-code">Negro Ónix (#1C1C1E)</span></dd>
-                    </div>
-                    <div class="spec-row">
-                        <dt>Coordenadas (X, Y)</dt>
-                        <dd id="spec-coords">X: 0.22 | Y: 0.20 | Escala: 10cm</dd>
-                    </div>
-                    <div class="spec-row">
-                        <dt id="spec-metric-label">Detalle Técnico</dt>
-                        <dd id="spec-stitches">~4,200 puntadas</dd>
+                        <dt>IVA (16%)</dt>
+                        <dd id="summary-tax">$0 MXN</dd>
                     </div>
                     <div class="spec-row total-row">
-                        <dt>Total Estimado (Personalización incl.)</dt>
-                        <dd id="spec-price">$890 MXN</dd>
+                        <dt>Total Final</dt>
+                        <dd id="summary-total">$0 MXN</dd>
                     </div>
                 </dl>
             </div>
 
-            <p class="editorial-footnote">ATELIER HILO • ORDEN DE PRODUCCIÓN DIGITAL</p>
+            <p class="editorial-footnote">ATELIER HILO × ÉXODO BORDADOS • ORDEN DE PRODUCCIÓN DIGITAL</p>
         </aside>
 
-        <!-- Mitad Derecha: Autenticación Verificada con Google -->
+        <!-- ==================================================================
+             MITAD DERECHA: AUTH (CORREO + GOOGLE), ROLES, FACTURACIÓN Y PAGOS
+             ================================================================== -->
         <main class="auth-side">
             <div class="auth-box">
-                <p class="eyebrow">PASO FINAL / AUTENTICACIÓN</p>
-                <h2 class="auth-title">Identifícate para procesar tu orden</h2>
-                <p class="auth-desc">
-                    Para garantizar la seguridad de tu pedido y enviarte el seguimiento de producción de tu prenda personalizada, utilizamos autenticación verificada mediante Google.
-                </p>
+                <p class="eyebrow">CHECKOUT / IDENTIDAD Y PAGO</p>
+                <h2 class="auth-title">Finaliza tu orden de taller</h2>
 
-                <!-- Contenedor Oficial de Google Sign-In -->
-                <div class="google-auth-wrapper">
-                    <div id="g_id_onload"
-                         data-client_id="TU_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
-                         data-context="signin"
-                         data-ux_mode="popup"
-                         data-callback="handleGoogleCredentialResponse"
-                         data-auto_prompt="false">
+                <!-- BLOQUE 1: AUTENTICACIÓN (CORREO/CONTRASEÑA + ROLES + GOOGLE OAUTH) -->
+                <section id="auth-forms-section" class="checkout-section">
+                    <div class="auth-tabs" role="tablist">
+                        <button type="button" class="auth-tab active" data-auth-tab="login">Iniciar Sesión</button>
+                        <button type="button" class="auth-tab" data-auth-tab="register">Crear Cuenta</button>
                     </div>
 
-                    <div class="g_id_signin"
-                         data-type="standard"
-                         data-shape="rectangular"
-                         data-theme="filled_black"
-                         data-text="continue_with"
-                         data-size="large"
-                         data-logo_alignment="left"
-                         data-width="340">
+                    <!-- Formulario: Iniciar Sesión -->
+                    <form id="login-form" class="auth-form">
+                        <div class="field-group">
+                            <label for="login-email">Correo electrónico</label>
+                            <input type="email" id="login-email" required placeholder="tu@correo.com" autocomplete="email">
+                        </div>
+                        <div class="field-group">
+                            <label for="login-password">Contraseña</label>
+                            <input type="password" id="login-password" required placeholder="••••••••" autocomplete="current-password">
+                        </div>
+                        <button type="submit" class="btn-dark-full" id="login-submit-btn">Iniciar Sesión →</button>
+                    </form>
+
+                    <!-- Formulario: Registro con Rol -->
+                    <form id="register-form" class="auth-form hidden">
+                        <div class="field-group">
+                            <label for="register-name">Nombre completo</label>
+                            <input type="text" id="register-name" required placeholder="Ej. María González" autocomplete="name">
+                        </div>
+                        <div class="field-group">
+                            <label for="register-email">Correo electrónico</label>
+                            <input type="email" id="register-email" required placeholder="tu@correo.com" autocomplete="email">
+                        </div>
+                        <div class="field-row-2">
+                            <div class="field-group">
+                                <label for="register-password">Contraseña (mín. 6)</label>
+                                <input type="password" id="register-password" required minlength="6" placeholder="••••••••" autocomplete="new-password">
+                            </div>
+                            <div class="field-group">
+                                <label for="register-role">Rol de cuenta</label>
+                                <select id="register-role">
+                                    <option value="Cliente" selected>Cliente</option>
+                                    <option value="Ventas">Ventas</option>
+                                    <option value="Diseñador">Diseñador</option>
+                                    <option value="Producción">Producción</option>
+                                    <option value="Administrador">Administrador</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-dark-full" id="register-submit-btn">Crear Cuenta y Continuar →</button>
+                    </form>
+
+                    <div id="auth-error-banner" class="error-banner hidden"></div>
+
+                    <div class="divider"><span>O CONTINÚA CON GOOGLE</span></div>
+
+                    <!-- Contenedor Oficial de Google Sign-In -->
+                    <div class="google-auth-wrapper">
+                        <div id="g_id_onload"
+                             data-client_id="TU_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+                             data-context="signin"
+                             data-ux_mode="popup"
+                             data-callback="handleGoogleCredentialResponse"
+                             data-auto_prompt="false">
+                        </div>
+
+                        <div class="g_id_signin"
+                             data-type="standard"
+                             data-shape="rectangular"
+                             data-theme="filled_black"
+                             data-text="continue_with"
+                             data-size="large"
+                             data-logo_alignment="left"
+                             data-width="340">
+                        </div>
                     </div>
-                </div>
 
-                <div class="divider"><span>O PRUEBA EN LOCAL (VS CODE)</span></div>
+                    <!-- Demo Local con selección rápida de rol -->
+                    <div class="demo-auth-row">
+                        <select id="demo-role-select" aria-label="Rol en modo demo">
+                            <option value="Cliente" selected>Rol: Cliente</option>
+                            <option value="Ventas">Rol: Ventas</option>
+                            <option value="Diseñador">Rol: Diseñador</option>
+                            <option value="Producción">Rol: Producción</option>
+                            <option value="Administrador">Rol: Administrador</option>
+                        </select>
+                        <button type="button" id="simulate-google-btn" class="btn-google-sim">
+                            <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
+                                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                            </svg>
+                            <span>Demo Google Local</span>
+                        </button>
+                    </div>
+                </section>
 
-                <!-- Botón de simulación para probar el flujo en VS Code antes de dar de alta el dominio en Google Cloud -->
-                <button id="simulate-google-btn" class="btn-google-sim">
-                    <svg width="18" height="18" viewBox="0 0 48 48">
-                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                    </svg>
-                    <span>Continuar con Google (Modo Demo Local)</span>
-                </button>
-
-                <!-- Tarjeta de Usuario Verificado (Aparece tras iniciar sesión) -->
+                <!-- TARJETA DE USUARIO AUTENTICADO + CONTROL DE ROL -->
                 <div id="verified-user-card" class="verified-card hidden">
                     <div class="verified-header">
-                        <span class="check-badge" id="auth-status-badge">✓ IDENTIDAD VERIFICADA</span>
+                        <span class="check-badge" id="auth-status-badge">✓ SESIÓN ACTIVA</span>
+                        <span class="role-badge" id="user-role-badge">Cliente</span>
                     </div>
                     <p id="user-name-display" class="user-name"></p>
                     <p id="user-email-display" class="user-email"></p>
-                    <button id="confirm-production-btn" class="btn-confirm">
-                        Enviar Orden a Taller de Producción →
-                    </button>
+                    <p id="role-access-note" class="role-access-note"></p>
+                    <div class="verified-actions-row">
+                        <button type="button" id="logout-btn" class="btn-link-muted">Cerrar sesión</button>
+                    </div>
                 </div>
 
-                <!-- Tarjeta Editorial de Confirmación de Orden (Aparece tras POST /api/orders exitoso) -->
+                <!-- BLOQUE 2: DATOS DE FACTURACIÓN (RF-03) -->
+                <section id="billing-section" class="checkout-section hidden">
+                    <label class="toggle-billing-row">
+                        <input type="checkbox" id="require-invoice-toggle">
+                        <span><strong>Requiero factura fiscal</strong> (RFC, Razón Social y CP)</span>
+                    </label>
+
+                    <div id="billing-fields" class="billing-fields hidden">
+                        <div class="field-group">
+                            <label for="billing-razon">Razón Social / Nombre Fiscal *</label>
+                            <input type="text" id="billing-razon" placeholder="Ej. Comercializadora del Norte S.A. de C.V.">
+                        </div>
+                        <div class="field-row-2">
+                            <div class="field-group">
+                                <label for="billing-rfc">RFC (12 o 13 caracteres) *</label>
+                                <input type="text" id="billing-rfc" maxlength="13" placeholder="XAXX010101000" style="text-transform: uppercase;">
+                            </div>
+                            <div class="field-group">
+                                <label for="billing-cp">Código Postal *</label>
+                                <input type="text" id="billing-cp" maxlength="5" placeholder="87350" inputmode="numeric">
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <label for="billing-email">Correo de facturación *</label>
+                            <input type="email" id="billing-email" placeholder="facturacion@empresa.com">
+                        </div>
+                        <div class="field-group">
+                            <label for="billing-address">Dirección fiscal</label>
+                            <input type="text" id="billing-address" placeholder="Calle, número, colonia y ciudad">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- BLOQUE 3: MÉTODO DE PAGO SIMULADO (RF-08) -->
+                <section id="payment-section" class="checkout-section hidden">
+                    <p class="eyebrow">MÉTODO DE PAGO</p>
+                    <div class="payment-methods-grid" role="radiogroup" aria-label="Método de pago">
+                        <button type="button" class="payment-option active" data-payment="card">
+                            <strong>Tarjeta</strong>
+                            <small>Crédito / Débito</small>
+                        </button>
+                        <button type="button" class="payment-option" data-payment="transfer">
+                            <strong>Transferencia</strong>
+                            <small>SPEI / CLABE</small>
+                        </button>
+                        <button type="button" class="payment-option" data-payment="paypal">
+                            <strong>PayPal</strong>
+                            <small>Cuenta digital</small>
+                        </button>
+                        <button type="button" class="payment-option" data-payment="branch">
+                            <strong>Sucursal</strong>
+                            <small>Matamoros, Tamps.</small>
+                        </button>
+                    </div>
+
+                    <!-- Panel: Tarjeta (Simulado, no almacena datos sensibles) -->
+                    <div id="pay-panel-card" class="payment-detail-panel">
+                        <p class="payment-sim-note">Simulación segura: los datos de tarjeta solo se validan en formato y nunca se almacenan.</p>
+                        <div class="field-group">
+                            <label for="card-holder">Nombre del titular</label>
+                            <input type="text" id="card-holder" placeholder="Como aparece en la tarjeta">
+                        </div>
+                        <div class="field-group">
+                            <label for="card-number">Número de tarjeta (16 dígitos)</label>
+                            <input type="text" id="card-number" maxlength="19" placeholder="4532 1234 5678 9012" inputmode="numeric">
+                        </div>
+                        <div class="field-row-2">
+                            <div class="field-group">
+                                <label for="card-expiry">Vigencia (MM/AA)</label>
+                                <input type="text" id="card-expiry" maxlength="5" placeholder="12/28" inputmode="numeric">
+                            </div>
+                            <div class="field-group">
+                                <label for="card-cvv">CVV</label>
+                                <input type="password" id="card-cvv" maxlength="4" placeholder="123" inputmode="numeric">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel: Transferencia SPEI -->
+                    <div id="pay-panel-transfer" class="payment-detail-panel hidden">
+                        <p class="payment-info-title">Datos para Transferencia Bancaria (SPEI)</p>
+                        <ul class="payment-instructions">
+                            <li><strong>Banco:</strong> BBVA México (Simulado)</li>
+                            <li><strong>Beneficiario:</strong> Éxodo Bordados y Diseños</li>
+                            <li><strong>CLABE:</strong> <code>0128 1800 1548 9607 23</code></li>
+                            <li><strong>Concepto / Referencia:</strong> Se asignará con tu folio <code>AH-2026-XXXX</code></li>
+                        </ul>
+                    </div>
+
+                    <!-- Panel: PayPal -->
+                    <div id="pay-panel-paypal" class="payment-detail-panel hidden">
+                        <p class="payment-info-title">Pago Simulado con PayPal</p>
+                        <div class="field-group">
+                            <label for="paypal-email">Correo de tu cuenta PayPal</label>
+                            <input type="email" id="paypal-email" placeholder="cliente@paypal-demo.com">
+                        </div>
+                    </div>
+
+                    <!-- Panel: Pago en Sucursal -->
+                    <div id="pay-panel-branch" class="payment-detail-panel hidden">
+                        <p class="payment-info-title">Pago Directo en Taller / Sucursal</p>
+                        <ul class="payment-instructions">
+                            <li><strong>Dirección:</strong> Laguna Madre #105 B, H. Matamoros, Tamps., C.P. 87350</li>
+                            <li><strong>Horario:</strong> Lunes a Sábado, 9:00 a 18:00 hrs</li>
+                            <li><strong>Nota:</strong> Presenta tu folio de orden para liquidar en efectivo o terminal y liberar a producción.</li>
+                        </ul>
+                    </div>
+
+                    <div id="checkout-error-banner" class="error-banner hidden"></div>
+
+                    <button type="button" id="confirm-production-btn" class="btn-confirm">
+                        Confirmar y Registrar Pedido →
+                    </button>
+                </section>
+
+                <!-- BLOQUE 4: CONFIRMACIÓN + NOTIFICACIÓN DE CORREO + RECIBO IMPRIMIBLE (RF-12 y RF-16) -->
                 <div id="order-confirmation-card" class="order-confirmation-card hidden">
                     <p class="eyebrow">CONFIRMACIÓN OFICIAL DE TALLER</p>
                     <h3 class="folio-title">Folio: <span id="confirmed-order-folio">AH-2026-0000</span></h3>
-                    <p id="confirmed-order-msg" class="folio-desc">
-                        Tu orden y matriz de diseño han sido registradas exitosamente en producción.
-                    </p>
+                    <p id="confirmed-order-msg" class="folio-desc"></p>
+
+                    <!-- Simulación de Notificación por Correo Electrónico (RF-16) -->
+                    <div id="email-notification-box" class="email-notice-box">
+                        <strong>✉ Correo de confirmación enviado (simulado)</strong>
+                        <p id="email-notice-detail"></p>
+                    </div>
+
                     <div class="folio-actions">
+                        <button type="button" id="print-receipt-btn" class="btn-print-receipt">
+                            Descargar / Imprimir Recibo
+                        </button>
                         <a id="confirmed-image-link" href="#" target="_blank" rel="noopener noreferrer" class="folio-link hidden">
                             Ver archivo PNG generado en servidor →
                         </a>
@@ -136,11 +338,74 @@
                 </div>
             </div>
         </main>
-
     </div>
 
+    <!-- ======================================================================
+         COMPROBANTE FORMAL EXCLUSIVO PARA IMPRESIÓN (@media print - RF-12)
+         ====================================================================== -->
+    <section id="printable-receipt" class="printable-receipt" aria-label="Recibo de pedido">
+        <header class="receipt-header">
+            <div>
+                <h1 class="receipt-brand">ATELIER HILO × ÉXODO BORDADOS</h1>
+                <p class="receipt-sub">Laguna Madre #105 B, H. Matamoros, Tamps., México, C.P. 87350 • Tel/WhatsApp: 868 796 0723</p>
+                <p class="receipt-sub">exododisenos@gmail.com • facebook.com/exodobordados</p>
+            </div>
+            <div class="receipt-folio-box">
+                <span class="receipt-label">COMPROBANTE DE ORDEN</span>
+                <strong id="receipt-folio">AH-2026-0000</strong>
+                <small id="receipt-date"></small>
+            </div>
+        </header>
+
+        <div class="receipt-meta-grid">
+            <div class="receipt-meta-card">
+                <h3>Datos del Cliente</h3>
+                <p><strong>Nombre:</strong> <span id="receipt-user-name"></span></p>
+                <p><strong>Correo:</strong> <span id="receipt-user-email"></span></p>
+                <p><strong>Rol:</strong> <span id="receipt-user-role"></span></p>
+            </div>
+            <div class="receipt-meta-card">
+                <h3>Datos de Facturación</h3>
+                <div id="receipt-billing-block"></div>
+            </div>
+        </div>
+
+        <table class="receipt-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Prenda / Técnica</th>
+                    <th>Especificaciones</th>
+                    <th>Cant.</th>
+                    <th>P. Unit.</th>
+                    <th>Importe</th>
+                </tr>
+            </thead>
+            <tbody id="receipt-items-tbody"></tbody>
+        </table>
+
+        <div class="receipt-bottom-grid">
+            <div class="receipt-payment-box">
+                <h3>Método de Pago</h3>
+                <p><strong>Forma:</strong> <span id="receipt-payment-method"></span></p>
+                <p><strong>Estado:</strong> <span id="receipt-payment-status"></span></p>
+                <p><strong>Referencia:</strong> <span id="receipt-payment-ref"></span></p>
+            </div>
+            <div class="receipt-totals-box">
+                <div class="rt-row"><span>Subtotal:</span><strong id="receipt-subtotal">$0 MXN</strong></div>
+                <div class="rt-row" id="receipt-discount-row"><span>Descuento:</span><strong id="receipt-discount">-$0 MXN</strong></div>
+                <div class="rt-row"><span>IVA (16%):</span><strong id="receipt-tax">$0 MXN</strong></div>
+                <div class="rt-row rt-final"><span>Total Final:</span><strong id="receipt-total">$0 MXN</strong></div>
+            </div>
+        </div>
+
+        <footer class="receipt-footer">
+            Gracias por tu pedido en Atelier Hilo × Éxodo Bordados. Conserva este folio para seguimiento de producción y entrega.
+        </footer>
+    </section>
+
     <!-- Contenedor donde se monta el Footer Legal y de Redes Sociales (/footer/footer.js) -->
-    <div id="site-footer-mount"></div>
+    <div id="site-footer-mount" class="no-print"></div>
 
     <script src="login.js"></script>
     <script src="../footer/footer.js"></script>

@@ -1617,8 +1617,78 @@ function initUIEvents() {
         setTechniqueMode(orderState.technique);
     });
 
-    document.getElementById('continue-order-btn').addEventListener('click', () => {
+    function getCartItems() {
+        try {
+            const raw = localStorage.getItem('cartItems');
+            const parsed = raw ? JSON.parse(raw) : [];
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (_) {
+            return [];
+        }
+    }
+
+    function updateNavbarCartBadge() {
+        const cta = document.getElementById('nav-cart-cta');
+        if (!cta) return;
+        const items = getCartItems();
+        const totalQty = items.reduce((acc, item) => acc + (parseInt(item.quantity, 10) || 1), 0);
+        cta.textContent = `Mi Carrito (${totalQty}) →`;
+    }
+
+    function addCurrentOrderToCart() {
+        const items = getCartItems();
+        const newItem = {
+            id: `ITEM-${Date.now().toString(36)}-${Math.floor(Math.random() * 900 + 100)}`,
+            garmentType: orderState.garmentType,
+            garmentName: orderState.garmentName,
+            technique: orderState.technique,
+            techniqueName: orderState.techniqueName,
+            unitPrice: orderState.price,
+            price: orderState.price,
+            quantity: 1,
+            fabricColor: orderState.fabricColor,
+            fabricColorName: orderState.fabricColorName,
+            logoX: orderState.logoX,
+            logoY: orderState.logoY,
+            logoScale: orderState.logoScale,
+            stitchDensity: orderState.stitchDensity,
+            stitchCount: orderState.stitchCount,
+            printAreaCm2: orderState.printAreaCm2,
+            embroideryDataUrl: orderState.embroideryDataUrl
+        };
+
+        items.push(newItem);
+        localStorage.setItem('cartItems', JSON.stringify(items));
         localStorage.setItem('atelier_custom_order', JSON.stringify(orderState));
+        updateNavbarCartBadge();
+        return items.length;
+    }
+
+    updateNavbarCartBadge();
+
+    let addedCurrentItem = false;
+    const addToCartBtn = document.getElementById('add-to-cart-btn');
+    const toastEl = document.getElementById('cart-feedback-toast');
+
+    if (addToCartBtn) {
+        addToCartBtn.addEventListener('click', () => {
+            const count = addCurrentOrderToCart();
+            addedCurrentItem = true;
+            if (toastEl) {
+                toastEl.textContent = `✓ ${orderState.garmentName} agregado (${count} artículo${count > 1 ? 's' : ''} en tu carrito).`;
+                toastEl.classList.remove('hidden');
+                setTimeout(() => toastEl.classList.add('hidden'), 3200);
+            }
+        });
+    }
+
+    document.getElementById('continue-order-btn').addEventListener('click', () => {
+        const currentCart = getCartItems();
+        if (!addedCurrentItem || currentCart.length === 0) {
+            addCurrentOrderToCart();
+        } else {
+            localStorage.setItem('atelier_custom_order', JSON.stringify(orderState));
+        }
         window.location.href = '../login/login.html';
     });
 }

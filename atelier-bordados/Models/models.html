@@ -23,7 +23,7 @@
             <a href="../home/index.html">← Inicio &amp; Técnicas</a>
             <a href="#catalogo-3d" class="active-link">Catálogo 3D (7 Prendas)</a>
             <a href="#estudio-ia">Laboratorio IA</a>
-            <a href="../login/login.html" class="nav-cta">Finalizar Pedido →</a>
+            <a href="../login/login.html" class="nav-cta" id="nav-cart-cta">Mi Carrito (0) →</a>
         </nav>
     </header>
 
@@ -265,15 +265,21 @@
                 </div>
             </div>
 
-            <!-- Resumen de precio dinámico y CTA -->
+            <!-- Resumen de precio dinámico y CTA de Carrito Múltiple -->
             <div class="checkout-footer">
                 <div class="price-breakdown">
-                    <span>Total estimado:</span>
+                    <span>Precio unitario estimado:</span>
                     <strong id="live-total-price">$890 MXN</strong>
                 </div>
-                <button id="continue-order-btn" class="btn-primary">
-                    Continuar con el pedido →
-                </button>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                    <button id="add-to-cart-btn" type="button" class="btn-ghost" style="border-color: var(--ink); font-size: 0.72rem;">
+                        + Agregar al carrito
+                    </button>
+                    <button id="continue-order-btn" type="button" class="btn-primary" style="padding: 0.85rem 0.6rem; font-size: 0.72rem;">
+                        Ir al checkout →
+                    </button>
+                </div>
+                <p id="cart-feedback-toast" class="hidden" style="font-size: 0.72rem; color: #276749; font-weight: 600; text-align: center;"></p>
             </div>
         </section>
 
