@@ -6,13 +6,20 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { OAuth2Client } = require('google-auth-library');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const APP_URL = (process.env.APP_URL || `http://localhost:${PORT}`).replace(/\/+$/, '');
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'TU_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
+const AUTH_SECRET = process.env.AUTH_SECRET || 'atelier_hilo_dev_secret_cambia_en_produccion';
+const TAX_RATE = Number.isFinite(Number(process.env.TAX_RATE)) ? Number(process.env.TAX_RATE) : 0.16;
+
+const VALID_ROLES = ['Administrador', 'Diseñador', 'Producción', 'Ventas', 'Cliente'];
+const VALID_PAYMENT_METHODS = ['card', 'transfer', 'paypal', 'branch'];
 
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
@@ -20,12 +27,222 @@ const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 const DATA_DIR = path.join(__dirname, 'data');
 const ORDERS_FILE = path.join(DATA_DIR, 'orders.json');
+const USERS_FILE = path.join(DATA_DIR, 'users.json');
+const COUPONS_FILE = path.join(DATA_DIR, 'coupons.json');
 
-// Asegurar que las carpetas uploads/ y data/ existan al arrancar
+const DEFAULT_COUPONS = [
+    {
+        code: 'EXODO10',
+        type: 'percentage',
+        value: 10,
+        minSubtotal: 0,
+        active: true,
+        expiresAt: '2027-12-31T23:59:59.000Z',
+        description: '10% de descuento en tu pedido personalizado'
+    },
+    {
+        code: 'ATELIER150',
+        type: 'fixed',
+        value: 150,
+        minSubtotal: 600,
+        active: true,
+        expiresAt: '2027-12-31T23:59:59.000Z',
+        description: '$150 MXN de descuento en compras desde $600 MXN'
+    },
+    {
+        code: 'MAYOREO20',
+        type: 'percentage',
+        value: 20,
+        minSubtotal: 2000,
+        active: true,
+        expiresAt: '2027-12-31T23:59:59.000Z',
+        description: '20% de descuento en pedidos de mayoreo desde $2,000 MXN'
+    },
+    {
+        code: 'EXPIRADO50',
+        type: 'percentage',
+        value: 50,
+        minSubtotal: 0,
+        active: true,
+        expiresAt: '2025-01-01T00:00:00.000Z',
+        description: 'Cupón de prueba vencido'
+    }
+];
+
+// Asegurar que las carpetas uploads/ y data/ y sus JSON existan al arrancar
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(ORDERS_FILE)) {
     fs.writeFileSync(ORDERS_FILE, JSON.stringify([], null, 2), 'utf8');
+}
+if (!fs.existsSync(USERS_FILE)) {
+    fs.writeFileSync(USERS_FILE, JSON.stringify([], null, 2), 'utf8');
+}
+if (!fs.existsSync(COUPONS_FILE)) {
+    fs.writeFileSync(COUPONS_FILE, JSON.stringify(DEFAULT_COUPONS, null, 2), 'utf8');
+}
+
+// Utilidades de lectura/escritura JSON y criptografía (sin dependencias extra)
+function readJsonArray(filePath, fallback = []) {
+    try {
+        if (!fs.existsSync(filePath)) return fallback;
+        const raw = fs.readFileSync(filePath, 'utf8');
+        return raw.trim() ? JSON.parse(raw) : fallback;
+    } catch (err) {
+        console.error(`Error leyendo ${filePath}:`, err.message);
+        return fallback;
+    }
+}
+
+function writeJsonArray(filePath, data) {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+}
+
+function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
+    const derivedKey = crypto.scryptSync(password, salt, 64).toString('hex');
+    return `${salt}:${derivedKey}`;
+}
+
+function verifyPassword(password, storedHash) {
+    if (!storedHash || !storedHash.includes(':')) return false;
+    const [salt, originalHex] = storedHash.split(':');
+    const derivedBuf = crypto.scryptSync(password, salt, 64);
+    const originalBuf = Buffer.from(originalHex, 'hex');
+    if (derivedBuf.length !== originalBuf.length) return false;
+    return crypto.timingSafeEqual(derivedBuf, originalBuf);
+}
+
+function createSessionToken(user) {
+    const payload = {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        iat: Date.now()
+    };
+    const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    const signature = crypto
+        .createHmac('sha256', AUTH_SECRET)
+        .update(encoded)
+        .digest('base64url');
+    return `${encoded}.${signature}`;
+}
+
+function verifySessionToken(token) {
+    if (!token || !token.includes('.')) return null;
+    const [encoded, signature] = token.split('.');
+    const expectedSig = crypto
+        .createHmac('sha256', AUTH_SECRET)
+        .update(encoded)
+        .digest('base64url');
+    const sigBuf = Buffer.from(signature);
+    const expBuf = Buffer.from(expectedSig);
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+        return null;
+    }
+    try {
+        return JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
+    } catch (_) {
+        return null;
+    }
+}
+
+function sanitizeUser(user) {
+    return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role || 'Cliente',
+        authProvider: user.authProvider || 'local',
+        billing: user.billing || null,
+        createdAt: user.createdAt
+    };
+}
+
+function normalizeBilling(billing) {
+    if (!billing || typeof billing !== 'object') return null;
+    const cleaned = {
+        razonSocial: String(billing.razonSocial || '').trim(),
+        rfc: String(billing.rfc || '').trim().toUpperCase(),
+        billingEmail: String(billing.billingEmail || '').trim(),
+        fiscalAddress: String(billing.fiscalAddress || '').trim(),
+        postalCode: String(billing.postalCode || '').trim()
+    };
+    const hasAnyValue = Object.values(cleaned).some(Boolean);
+    return hasAnyValue ? cleaned : null;
+}
+
+function evaluateCoupon(codeInput, subtotal) {
+    const normalizedCode = String(codeInput || '').trim().toUpperCase();
+    if (!normalizedCode) {
+        return { valid: false, status: 400, error: 'Ingresa un código de cupón.' };
+    }
+    const coupons = readJsonArray(COUPONS_FILE, DEFAULT_COUPONS);
+    const coupon = coupons.find(c => String(c.code).toUpperCase() === normalizedCode);
+
+    if (!coupon) {
+        return { valid: false, status: 404, error: `El cupón "${normalizedCode}" no existe.` };
+    }
+    if (!coupon.active) {
+        return { valid: false, status: 400, error: `El cupón "${normalizedCode}" está inactivo.` };
+    }
+    if (coupon.expiresAt && new Date(coupon.expiresAt).getTime() < Date.now()) {
+        return { valid: false, status: 400, error: `El cupón "${normalizedCode}" ha expirado.` };
+    }
+    const numericSubtotal = Number(subtotal) || 0;
+    if (coupon.minSubtotal && numericSubtotal < coupon.minSubtotal) {
+        return {
+            valid: false,
+            status: 400,
+            error: `El cupón "${normalizedCode}" requiere un subtotal mínimo de $${coupon.minSubtotal.toLocaleString()} MXN.`
+        };
+    }
+
+    let discountAmount = 0;
+    if (coupon.type === 'percentage') {
+        discountAmount = Math.round((numericSubtotal * (Number(coupon.value) / 100)) * 100) / 100;
+    } else {
+        discountAmount = Math.min(numericSubtotal, Number(coupon.value) || 0);
+    }
+
+    return {
+        valid: true,
+        status: 200,
+        coupon: {
+            code: coupon.code,
+            type: coupon.type,
+            value: coupon.value,
+            description: coupon.description,
+            expiresAt: coupon.expiresAt
+        },
+        discountAmount
+    };
+}
+
+function requireAuth(req, res, next) {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+    const decoded = verifySessionToken(token);
+    if (!decoded) {
+        return res.status(401).json({
+            success: false,
+            error: 'Sesión no válida o expirada. Inicia sesión nuevamente.'
+        });
+    }
+    req.authUser = decoded;
+    next();
+}
+
+function requireRole(allowedRoles) {
+    return (req, res, next) => {
+        if (!req.authUser || !allowedRoles.includes(req.authUser.role)) {
+            return res.status(403).json({
+                success: false,
+                error: 'No tienes permisos suficientes para esta operación.'
+            });
+        }
+        next();
+    };
 }
 
 // Middlewares globales
@@ -47,23 +264,160 @@ app.get('/', (req, res) => {
     res.redirect('/home/index.html');
 });
 
+// ============================================================================
+// SECCIÓN SUPERIOR API: SALUD, CONFIG, AUTH/ROLES, USUARIOS, CUPONES, ÓRDENES Y PAGOS
+// (Mantener rutas administrativas únicamente en la sección inferior antes de app.listen)
+// ============================================================================
+
 /**
  * 1. ENDPOINT DE SALUD DEL SERVIDOR (Healthcheck para AWS EC2 / Nginx)
  */
 app.get('/api/health', (req, res) => {
     res.status(200).json({
         status: 'ok',
+        appUrl: APP_URL,
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV || 'development'
     });
 });
 
 /**
- * 2. ENDPOINT DE AUTENTICACIÓN CON GOOGLE (OAuth 2.0 / Modo Demo Local)
+ * 1B. CONFIGURACIÓN PÚBLICA (Permite sincronizar APP_URL, GOOGLE_CLIENT_ID e IVA en dev/prod)
+ */
+app.get('/api/config/public', (req, res) => {
+    const isGoogleConfigured =
+        Boolean(GOOGLE_CLIENT_ID) &&
+        GOOGLE_CLIENT_ID !== 'TU_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
+
+    res.status(200).json({
+        appUrl: APP_URL,
+        googleClientId: isGoogleConfigured ? GOOGLE_CLIENT_ID : null,
+        taxRate: TAX_RATE,
+        roles: VALID_ROLES
+    });
+});
+
+/**
+ * 2A. REGISTRO DE CLIENTES / USUARIOS CON CORREO, CONTRASEÑA, ROL Y FACTURACIÓN (RF-03 / RF-15)
+ */
+app.post('/api/auth/register', (req, res) => {
+    try {
+        const { name, email, password, role, billing } = req.body || {};
+
+        if (!name || !email || !password) {
+            return res.status(400).json({
+                success: false,
+                error: 'Nombre, correo electrónico y contraseña son obligatorio.'
+            });
+        }
+
+        const normalizedEmail = String(email).trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+            return res.status(400).json({
+                success: false,
+                error: 'El formato del correo electrónico no es válido.'
+            });
+        }
+
+        if (String(password).length < 6) {
+            return res.status(400).json({
+                success: false,
+                error: 'La contraseña debe tener al menos 6 caracteres.'
+            });
+        }
+
+        const assignedRole = VALID_ROLES.includes(role) ? role : 'Cliente';
+        const users = readJsonArray(USERS_FILE, []);
+        const existing = users.find(u => u.email === normalizedEmail);
+
+        if (existing) {
+            return res.status(400).json({
+                success: false,
+                error: 'Ya existe una cuenta registrada con ese correo electrónico.'
+            });
+        }
+
+        const newUser = {
+            id: `USR-${Date.now().toString(36).toUpperCase()}`,
+            name: String(name).trim(),
+            email: normalizedEmail,
+            passwordHash: hashPassword(String(password)),
+            role: assignedRole,
+            authProvider: 'local',
+            billing: normalizeBilling(billing),
+            createdAt: new Date().toISOString()
+        };
+
+        users.push(newUser);
+        writeJsonArray(USERS_FILE, users);
+
+        const safeUser = sanitizeUser(newUser);
+        const token = createSessionToken(safeUser);
+
+        return res.status(201).json({
+            success: true,
+            verified: true,
+            token,
+            user: safeUser
+        });
+    } catch (error) {
+        console.error('Error en /api/auth/register:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Error interno al registrar el usuario.'
+        });
+    }
+});
+
+/**
+ * 2B. INICIO DE SESIÓN CON CORREO Y CONTRASEÑA (RF-03 / RF-15)
+ */
+app.post('/api/auth/login', (req, res) => {
+    try {
+        const { email, password } = req.body || {};
+
+        if (!email || !password) {
+            return res.status(400).json({
+                success: false,
+                error: 'Ingresa correo electrónico y contraseña.'
+            });
+        }
+
+        const normalizedEmail = String(email).trim().toLowerCase();
+        const users = readJsonArray(USERS_FILE, []);
+        const user = users.find(u => u.email === normalizedEmail);
+
+        if (!user || !verifyPassword(String(password), user.passwordHash)) {
+            return res.status(401).json({
+                success: false,
+                error: 'Correo o contraseña incorrectos.'
+            });
+        }
+
+        const safeUser = sanitizeUser(user);
+        const token = createSessionToken(safeUser);
+
+        return res.status(200).json({
+            success: true,
+            verified: true,
+            token,
+            user: safeUser
+        });
+    } catch (error) {
+        console.error('Error en /api/auth/login:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Error interno al iniciar sesión.'
+        });
+    }
+});
+
+/**
+ * 2C. AUTENTICACIÓN CON GOOGLE (OAuth 2.0 / Modo Demo Local + Sincronización de Rol y Facturación)
  */
 app.post('/api/auth/google', async (req, res) => {
     try {
-        const { credential, googleJwt, name, email } = req.body || {};
+        const { credential, googleJwt, name, email, role, billing } = req.body || {};
         const token = credential || googleJwt;
 
         if (!token) {
@@ -77,47 +431,78 @@ app.post('/api/auth/google', async (req, res) => {
             !GOOGLE_CLIENT_ID ||
             GOOGLE_CLIENT_ID === 'TU_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
 
-        // Modo demostración local o cuando aún no se configura GOOGLE_CLIENT_ID en .env
-        if (token === 'DEV_LOCAL_TOKEN_SIMULATED' || isPlaceholderClientId) {
-            let resolvedName = name || 'Cliente Verificado (Google OAuth)';
-            let resolvedEmail = email || 'cliente.verificado@gmail.com';
+        let resolvedName = name || 'Cliente Verificado (Google OAuth)';
+        let resolvedEmail = (email || 'cliente.verificado@gmail.com').trim().toLowerCase();
+        let mode = 'demo_or_unconfigured_client';
+        let picture = null;
+        let sub = null;
 
-            // Si viene un JWT con estructura estándar y el Client ID aún es placeholder, decodificar payload básico
+        if (token === 'DEV_LOCAL_TOKEN_SIMULATED' || isPlaceholderClientId) {
             if (token !== 'DEV_LOCAL_TOKEN_SIMULATED' && token.split('.').length === 3) {
                 try {
                     const payloadJson = Buffer.from(token.split('.')[1], 'base64url').toString('utf8');
                     const decoded = JSON.parse(payloadJson);
                     resolvedName = decoded.name || resolvedName;
-                    resolvedEmail = decoded.email || resolvedEmail;
+                    resolvedEmail = (decoded.email || resolvedEmail).trim().toLowerCase();
                 } catch (_) {}
             }
-
-            return res.status(200).json({
-                verified: true,
-                mode: 'demo_or_unconfigured_client',
-                user: {
-                    name: resolvedName,
-                    email: resolvedEmail
-                }
+        } else {
+            const ticket = await googleClient.verifyIdToken({
+                idToken: token,
+                audience: GOOGLE_CLIENT_ID
             });
+            const payload = ticket.getPayload();
+            resolvedName = payload.name || resolvedName;
+            resolvedEmail = (payload.email || resolvedEmail).trim().toLowerCase();
+            picture = payload.picture || null;
+            sub = payload.sub || null;
+            mode = 'google_verified';
         }
 
-        // Verificación criptográfica real con Google Identity Services
-        const ticket = await googleClient.verifyIdToken({
-            idToken: token,
-            audience: GOOGLE_CLIENT_ID
-        });
+        // Sincronizar o crear usuario en users.json para persistir rol y datos fiscales
+        const users = readJsonArray(USERS_FILE, []);
+        let existingUser = users.find(u => u.email === resolvedEmail);
+        const requestedRole = VALID_ROLES.includes(role) ? role : null;
+        const normalizedBilling = normalizeBilling(billing);
 
-        const payload = ticket.getPayload();
+        if (!existingUser) {
+            existingUser = {
+                id: `USR-${Date.now().toString(36).toUpperCase()}`,
+                name: resolvedName,
+                email: resolvedEmail,
+                passwordHash: null,
+                role: requestedRole || 'Cliente',
+                authProvider: 'google',
+                billing: normalizedBilling,
+                createdAt: new Date().toISOString()
+            };
+            users.push(existingUser);
+            writeJsonArray(USERS_FILE, users);
+        } else {
+            let changed = false;
+            if (requestedRole && existingUser.role !== requestedRole) {
+                existingUser.role = requestedRole;
+                changed = true;
+            }
+            if (normalizedBilling) {
+                existingUser.billing = normalizedBilling;
+                changed = true;
+            }
+            if (changed) writeJsonArray(USERS_FILE, users);
+        }
+
+        const safeUser = {
+            ...sanitizeUser(existingUser),
+            picture,
+            sub
+        };
+        const sessionToken = createSessionToken(safeUser);
+
         return res.status(200).json({
             verified: true,
-            mode: 'google_verified',
-            user: {
-                name: payload.name,
-                email: payload.email,
-                picture: payload.picture || null,
-                sub: payload.sub
-            }
+            mode,
+            token: sessionToken,
+            user: safeUser
         });
     } catch (error) {
         console.error('Error al verificar token de Google:', error.message);
@@ -130,13 +515,81 @@ app.post('/api/auth/google', async (req, res) => {
 });
 
 /**
- * 3. ENDPOINT DE REGISTRO DE PEDIDOS DE TALLER (POST /api/orders)
+ * 2D. PERFIL DEL USUARIO AUTENTICADO: CONSULTA Y ACTUALIZACIÓN DE FACTURACIÓN / ROL (RF-03 / RF-15)
+ */
+app.get('/api/users/me', requireAuth, (req, res) => {
+    const users = readJsonArray(USERS_FILE, []);
+    const user = users.find(u => u.email === req.authUser.email);
+    if (!user) {
+        return res.status(404).json({ success: false, error: 'Usuario no encontrado.' });
+    }
+    return res.status(200).json({ success: true, user: sanitizeUser(user) });
+});
+
+app.put('/api/users/me', requireAuth, (req, res) => {
+    try {
+        const { name, role, billing } = req.body || {};
+        const users = readJsonArray(USERS_FILE, []);
+        const userIndex = users.findIndex(u => u.email === req.authUser.email);
+
+        if (userIndex === -1) {
+            return res.status(404).json({ success: false, error: 'Usuario no encontrado.' });
+        }
+
+        if (name && String(name).trim()) {
+            users[userIndex].name = String(name).trim();
+        }
+        if (role && VALID_ROLES.includes(role)) {
+            users[userIndex].role = role;
+        }
+        if (billing !== undefined) {
+            users[userIndex].billing = normalizeBilling(billing);
+        }
+
+        writeJsonArray(USERS_FILE, users);
+        const safeUser = sanitizeUser(users[userIndex]);
+        const refreshedToken = createSessionToken(safeUser);
+
+        return res.status(200).json({
+            success: true,
+            token: refreshedToken,
+            user: safeUser
+        });
+    } catch (error) {
+        console.error('Error actualizando perfil:', error);
+        return res.status(500).json({ success: false, error: 'No se pudo actualizar el perfil.' });
+    }
+});
+
+/**
+ * 3. VALIDACIÓN DE CUPONES DE DESCUENTO (RF-13)
+ */
+app.post('/api/coupons/validate', (req, res) => {
+    const { code, subtotal } = req.body || {};
+    const evaluation = evaluateCoupon(code, subtotal);
+
+    if (!evaluation.valid) {
+        return res.status(evaluation.status).json({
+            valid: false,
+            error: evaluation.error
+        });
+    }
+
+    return res.status(200).json({
+        valid: true,
+        coupon: evaluation.coupon,
+        discountAmount: evaluation.discountAmount,
+        message: `Cupón ${evaluation.coupon.code} aplicado: ${evaluation.coupon.description}`
+    });
+});
+
+/**
+ * 4. REGISTRO DE PEDIDOS (CARRITO MÚLTIPLE O PRENDA INDIVIDUAL) + PAGOS + FACTURACIÓN + NOTIFICACIÓN (RF-06, RF-08, RF-12, RF-13, RF-16)
  */
 app.post('/api/orders', (req, res) => {
     try {
-        const { user, order, createdAt } = req.body || {};
+        const { user, items, order, billing, payment, couponCode, createdAt } = req.body || {};
 
-        // Validar datos del usuario autenticado
         if (!user || !user.name || !user.email) {
             return res.status(400).json({
                 success: false,
@@ -144,88 +597,179 @@ app.post('/api/orders', (req, res) => {
             });
         }
 
-        // Validar estructura obligatoria de la orden (orderState / currentOrder)
-        if (!order || !order.garmentType || !order.garmentName || typeof order.price === 'undefined' || !order.fabricColor) {
+        // Normalizar artículos: soporta arreglo `items` (RF-06) o `order` individual heredado
+        const rawItems = Array.isArray(items) && items.length > 0
+            ? items
+            : (order ? [order] : []);
+
+        if (rawItems.length === 0) {
             return res.status(400).json({
                 success: false,
-                error: 'Faltan datos obligatorios de la prenda en el objeto order.'
+                error: 'El carrito está vacío. Agrega al menos un artículo para confirmar la orden.'
             });
         }
 
-        const requiredNumericFields = ['logoX', 'logoY', 'logoScale', 'stitchDensity', 'stitchCount'];
-        for (const field of requiredNumericFields) {
-            if (typeof order[field] === 'undefined' || order[field] === null || Number.isNaN(Number(order[field]))) {
-                return res.status(400).json({
-                    success: false,
-                    error: `El campo numérico order.${field} es obligatorio.`
-                });
-            }
-        }
-
-        if (!order.embroideryDataUrl || typeof order.embroideryDataUrl !== 'string') {
+        // Validar método de pago si se envió
+        const paymentMethod = (payment && payment.method) ? String(payment.method) : 'branch';
+        if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
             return res.status(400).json({
                 success: false,
-                error: 'Falta la imagen procesada del diseño (order.embroideryDataUrl).'
+                error: `Método de pago no soportado: ${paymentMethod}.`
             });
         }
 
         // Generar folio único de orden: AH-2026-XXXX
-        const randomDigits = Math.floor(1000 + Math.random() * 9000);
-        const folio = `AH-2026-${randomDigits}`;
+        const existingOrders = readJsonArray(ORDERS_FILE, []);
+        let folio = '';
+        do {
+            const randomDigits = Math.floor(1000 + Math.random() * 9000);
+            folio = `AH-2026-${randomDigits}`;
+        } while (existingOrders.some(o => o.orderId === folio));
 
-        // Extraer Base64 de embroideryDataUrl y guardar el archivo físico en uploads/<folio>.png
-        let savedImageRelativeUrl = null;
-        const base64Match = order.embroideryDataUrl.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
+        // Procesar cada artículo del carrito y guardar su archivo PNG en uploads/
+        const processedItems = [];
+        let subtotal = 0;
 
-        if (base64Match && base64Match[2]) {
-            const imageBuffer = Buffer.from(base64Match[2], 'base64');
-            const fileName = `${folio}.png`;
-            const filePath = path.join(UPLOADS_DIR, fileName);
-            fs.writeFileSync(filePath, imageBuffer);
-            savedImageRelativeUrl = `/api/uploads/${fileName}`;
+        for (let idx = 0; idx < rawItems.length; idx++) {
+            const item = rawItems[idx];
+
+            if (!item || !item.garmentType || !item.garmentName || typeof item.price === 'undefined' || !item.fabricColor) {
+                return res.status(400).json({
+                    success: false,
+                    error: `Faltan datos obligatorios en el artículo #${idx + 1} del carrito.`
+                });
+            }
+
+            const quantity = Math.max(1, parseInt(item.quantity, 10) || 1);
+            const unitPrice = Number(item.unitPrice !== undefined ? item.unitPrice : item.price);
+            if (Number.isNaN(unitPrice) || unitPrice < 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: `El precio del artículo #${idx + 1} no es válido.`
+                });
+            }
+
+            let savedImageRelativeUrl = null;
+            if (item.embroideryDataUrl && typeof item.embroideryDataUrl === 'string') {
+                const base64Match = item.embroideryDataUrl.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
+                if (base64Match && base64Match[2]) {
+                    const imageBuffer = Buffer.from(base64Match[2], 'base64');
+                    const suffix = rawItems.length === 1 ? '' : `-${idx + 1}`;
+                    const fileName = `${folio}${suffix}.png`;
+                    const filePath = path.join(UPLOADS_DIR, fileName);
+                    fs.writeFileSync(filePath, imageBuffer);
+                    savedImageRelativeUrl = `/api/uploads/${fileName}`;
+                }
+            }
+
+            const lineTotal = Math.round(unitPrice * quantity * 100) / 100;
+            subtotal += lineTotal;
+
+            processedItems.push({
+                itemIndex: idx + 1,
+                garmentType: item.garmentType,
+                garmentName: item.garmentName,
+                technique: item.technique || 'embroidery',
+                techniqueName: item.techniqueName || 'Bordado 3D de Alta Precisión',
+                unitPrice,
+                quantity,
+                lineTotal,
+                fabricColor: item.fabricColor,
+                fabricColorName: item.fabricColorName || null,
+                logoX: Number(item.logoX ?? 0.22),
+                logoY: Number(item.logoY ?? 0.20),
+                logoScale: Number(item.logoScale ?? 0.26),
+                stitchDensity: Number(item.stitchDensity ?? 3),
+                stitchCount: Number(item.stitchCount ?? 4200),
+                printAreaCm2: item.printAreaCm2 ? Number(item.printAreaCm2) : null,
+                embroideryImageUrl: savedImageRelativeUrl
+            });
         }
 
-        // Construir registro limpio sin incrustar la cadena Base64 gigante en orders.json
+        // Revalidar cupón en el servidor para garantizar integridad de totales
+        let appliedCoupon = null;
+        let discount = 0;
+        if (couponCode) {
+            const couponResult = evaluateCoupon(couponCode, subtotal);
+            if (!couponResult.valid) {
+                return res.status(couponResult.status).json({
+                    success: false,
+                    error: couponResult.error
+                });
+            }
+            appliedCoupon = couponResult.coupon;
+            discount = couponResult.discountAmount;
+        }
+
+        const taxableBase = Math.max(0, subtotal - discount);
+        const tax = Math.round(taxableBase * TAX_RATE * 100) / 100;
+        const total = Math.round((taxableBase + tax) * 100) / 100;
+
+        // Sanitizar datos de pago (nunca almacenar números de tarjeta completos ni CVV)
+        const paymentStatusMap = {
+            card: 'PAGADO_SIMULADO',
+            paypal: 'PAGADO_SIMULADO',
+            transfer: 'PENDIENTE_COMPROBANTE_SPEI',
+            branch: 'PENDIENTE_PAGO_SUCURSAL'
+        };
+
+        const sanitizedPayment = {
+            method: paymentMethod,
+            methodLabel: (payment && payment.methodLabel) ? String(payment.methodLabel) : paymentMethod,
+            status: paymentStatusMap[paymentMethod],
+            reference: (payment && payment.reference) ? String(payment.reference) : `REF-${folio}`,
+            cardLast4: (paymentMethod === 'card' && payment && payment.cardLast4) ? String(payment.cardLast4).slice(-4) : null,
+            cardHolder: (paymentMethod === 'card' && payment && payment.cardHolder) ? String(payment.cardHolder).trim() : null,
+            paypalEmail: (paymentMethod === 'paypal' && payment && payment.paypalEmail) ? String(payment.paypalEmail).trim() : null
+        };
+
+        const normalizedBilling = normalizeBilling(billing);
+        const orderTimestamp = createdAt || new Date().toISOString();
+
+        const emailNotification = {
+            simulated: true,
+            to: user.email,
+            billingCopyTo: normalizedBilling && normalizedBilling.billingEmail ? normalizedBilling.billingEmail : null,
+            subject: `Confirmación de Pedido ${folio} — Atelier Hilo × Éxodo Bordados`,
+            sentAt: new Date().toISOString(),
+            preview: `Hola ${user.name}, recibimos tu orden ${folio} con ${processedItems.length} artículo(s) por un total de $${total.toLocaleString()} MXN.`
+        };
+
         const orderRecord = {
             orderId: folio,
-            createdAt: createdAt || new Date().toISOString(),
+            createdAt: orderTimestamp,
             status: 'EN_COLA_DE_TALLER',
             user: {
                 name: user.name,
-                email: user.email
+                email: user.email,
+                role: VALID_ROLES.includes(user.role) ? user.role : 'Cliente'
             },
-            order: {
-                garmentType: order.garmentType,
-                garmentName: order.garmentName,
-                technique: order.technique || 'embroidery',
-                techniqueName: order.techniqueName || 'Bordado 3D de Alta Precisión',
-                price: Number(order.price),
-                fabricColor: order.fabricColor,
-                fabricColorName: order.fabricColorName || null,
-                logoX: Number(order.logoX),
-                logoY: Number(order.logoY),
-                logoScale: Number(order.logoScale),
-                stitchDensity: Number(order.stitchDensity),
-                stitchCount: Number(order.stitchCount),
-                printAreaCm2: order.printAreaCm2 ? Number(order.printAreaCm2) : null,
-                embroideryImageUrl: savedImageRelativeUrl
-            }
+            billing: normalizedBilling,
+            items: processedItems,
+            // Campo `order` conservado por compatibilidad con consumidores previos
+            order: processedItems[0],
+            pricing: {
+                subtotal,
+                discount,
+                taxRate: TAX_RATE,
+                tax,
+                total,
+                currency: 'MXN',
+                coupon: appliedCoupon
+            },
+            payment: sanitizedPayment,
+            emailNotification
         };
 
-        // Leer, agregar y persistir en data/orders.json
-        let existingOrders = [];
-        if (fs.existsSync(ORDERS_FILE)) {
-            const rawContent = fs.readFileSync(ORDERS_FILE, 'utf8');
-            existingOrders = rawContent.trim() ? JSON.parse(rawContent) : [];
-        }
-
         existingOrders.push(orderRecord);
-        fs.writeFileSync(ORDERS_FILE, JSON.stringify(existingOrders, null, 2), 'utf8');
+        writeJsonArray(ORDERS_FILE, existingOrders);
 
         return res.status(201).json({
             success: true,
             orderId: folio,
-            embroideryImageUrl: savedImageRelativeUrl,
+            embroideryImageUrl: processedItems[0].embroideryImageUrl,
+            orderRecord,
+            emailNotification,
             message: 'Orden registrada en taller'
         });
     } catch (error) {
@@ -239,15 +783,19 @@ app.post('/api/orders', (req, res) => {
 });
 
 /**
- * 4. ENDPOINT DE AUDITORÍA Y CONSULTA DE ÓRDENES (GET /api/orders)
+ * 5. CONSULTA DE ÓRDENES (GET /api/orders y GET /api/orders/:orderId)
  */
 app.get('/api/orders', (req, res) => {
     try {
-        if (!fs.existsSync(ORDERS_FILE)) {
-            return res.status(200).json([]);
+        const orders = readJsonArray(ORDERS_FILE, []);
+        const authHeader = req.headers.authorization || '';
+        const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+        const decoded = verifySessionToken(token);
+
+        // Si viene autenticado como Cliente, filtra solo sus órdenes; otros roles ven todas
+        if (decoded && decoded.role === 'Cliente') {
+            return res.status(200).json(orders.filter(o => o.user && o.user.email === decoded.email));
         }
-        const rawContent = fs.readFileSync(ORDERS_FILE, 'utf8');
-        const orders = rawContent.trim() ? JSON.parse(rawContent) : [];
         return res.status(200).json(orders);
     } catch (error) {
         console.error('Error al leer orders.json:', error);
@@ -417,13 +965,35 @@ app.post('/api/quotes', (req, res) => {
     writeJson(QUOTES_FILE, quotes);
     res.status(201).json({ success: true, quote: newQuote });
 });
+app.get('/api/orders/:orderId', (req, res) => {
+    try {
+        const orders = readJsonArray(ORDERS_FILE, []);
+        const found = orders.find(o => o.orderId === req.params.orderId);
+        if (!found) {
+            return res.status(404).json({
+                success: false,
+                error: `Orden ${req.params.orderId} no encontrada.`
+            });
+        }
+        return res.status(200).json({ success: true, order: found });
+    } catch (error) {
+        console.error('Error buscando orden:', error);
+        return res.status(500).json({ success: false, error: 'Error al consultar la orden.' });
+    }
+});
+
+// ============================================================================
+// SECCIÓN INFERIOR RESERVADA: RUTAS ADMINISTRATIVAS
+// (Dejar libre este bloque para futuras rutas de panel administrativo)
+// ============================================================================
 
 app.listen(PORT, () => {
     console.log(`==================================================================`);
     console.log(`  ATELIER HILO / ÉXODO BORDADOS — Backend Activo en Puerto ${PORT}`);
-    console.log(`  Frontend Home:   http://localhost:${PORT}/home/index.html`);
-    console.log(`  Estudio 3D:      http://localhost:${PORT}/Models/models.html`);
-    console.log(`  Checkout Login:  http://localhost:${PORT}/login/login.html`);
-    console.log(`  Healthcheck API: http://localhost:${PORT}/api/health`);
+    console.log(`  App URL:         ${APP_URL}`);
+    console.log(`  Frontend Home:   ${APP_URL}/home/index.html`);
+    console.log(`  Estudio 3D:      ${APP_URL}/Models/models.html`);
+    console.log(`  Checkout Login:  ${APP_URL}/login/login.html`);
+    console.log(`  Healthcheck API: ${APP_URL}/api/health`);
     console.log(`==================================================================`);
 });

@@ -29,9 +29,23 @@ document.addEventListener('DOMContentLoaded', () => {
     loadExistingOrderState();
     initHomeDefaultLogo();
     initHomeEvents();
+    syncHomeCartBadge();
     handleResponsiveViewport();
     window.addEventListener('resize', handleResponsiveViewport);
 });
+
+function syncHomeCartBadge() {
+    const cta = document.querySelector('.nav-cta');
+    if (!cta) return;
+    try {
+        const raw = localStorage.getItem('cartItems');
+        const items = raw ? JSON.parse(raw) : [];
+        if (Array.isArray(items) && items.length > 0) {
+            const totalQty = items.reduce((acc, item) => acc + (parseInt(item.quantity, 10) || 1), 0);
+            cta.textContent = `Mi Carrito (${totalQty}) →`;
+        }
+    } catch (_) {}
+}
 
 /**
  * Adapta lienzos y, en caso de existir visor 3D activo en la vista, actualiza aspect ratio y distancia Z móvil
