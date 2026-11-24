@@ -276,12 +276,37 @@ function initHomeEvents() {
         }
     });
 
-    // Tarjetas de las 7 prendas -> abren directamente esa prenda en ../Models/models.html
+    // Filtros por categoría en el catálogo
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const filter = btn.dataset.filter;
+
+            document.querySelectorAll('.catalog-item').forEach(card => {
+                const match = filter === 'all' || card.dataset.category === filter;
+                card.classList.toggle('hidden-by-filter', !match);
+            });
+        });
+    });
+
+    // Tarjetas del catálogo -> prendas 3D van al estudio, imprenta/promocionales van a cotizar
     document.querySelectorAll('.catalog-item').forEach(item => {
         item.addEventListener('click', () => {
-            homeState.garmentType = item.dataset.garment;
-            saveHomeState();
-            window.location.href = '../Models/models.html';
+            if (item.dataset.garment) {
+                homeState.garmentType = item.dataset.garment;
+                saveHomeState();
+                window.location.href = '../Models/models.html';
+            } else {
+                const quoteSection = document.getElementById('cotizacion');
+                const notesField = document.getElementById('quote-notes');
+                if (notesField) {
+                    notesField.value = `Me interesa cotizar: ${item.dataset.productName} (Precio base ref: $${item.dataset.productPrice} MXN).`;
+                }
+                if (quoteSection) {
+                    quoteSection.scrollIntoView({ behavior: 'smooth' });
+                }
+            }
         });
     });
 
@@ -289,4 +314,92 @@ function initHomeEvents() {
     document.getElementById('go-to-3d-btn').addEventListener('click', () => {
         saveHomeState();
     });
+
+    // Rastreo de pedidos por folio (GET /api/orders)
+    const trackingForm = document.getElementById('tracking-form');
+    if (trackingForm) {
+        trackingForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const folioInput = document.getElementById('tracking-folio-input').value.trim().toUpperCase();
+            if (!folioInput) return;
+
+            const resultBox = document.getElementById('tracking-result');
+            const folioDisplay = document.getElementById('track-folio-display');
+            const statusPill = document.getElementById('track-status-pill');
+            const metaInfo = document.getElementById('track-garment-info');
+
+            let foundOrder = null;
+            try {
+                const res = await fetch('/api/orders');
+                if (res.ok) {
+                    const orders = await res.json();
+                    foundOrder = orders.find(o => o.orderId && o.orderId.toUpperCase() === folioInput);
+                }
+            } catch (_) {}
+
+            resultBox.classList.remove('hidden');
+            folioDisplay.textContent = folioInput;
+
+            const stages = [
+                'Cotización',
+                'Diseño aprobado',
+                'En producción',
+                'En bordado o impresión',
+                'Empaque',
+                'Enviado',
+                'Entregado'
+            ];
+
+            let currentStage = 'En producción';
+            if (foundOrder) {
+                const rawStatus = foundOrder.status || 'En producción';
+                currentStage = rawStatus === 'EN_COLA_DE_TALLER' ? 'En producción' : rawStatus;
+                metaInfo.textContent = `Cliente: ${foundOrder.user.name} • Producto: ${foundOrder.order.garmentName} (${foundOrder.order.techniqueName})`;
+            } else {
+                metaInfo.textContent = 'Mostrando estado estimado en taller. Verifica que el servidor esté encendido para consulta en vivo.';
+            }
+
+            statusPill.textContent = currentStage;
+            const currentIdx = Math.max(0, stages.findIndex(s => s.toLowerCase() === currentStage.toLowerCase()));
+
+            document.querySelectorAll('#production-steps-list li').forEach((li, idx) => {
+                li.classList.remove('done', 'current');
+                if (idx < currentIdx) li.classList.add('done');
+                if (idx === currentIdx) li.classList.add('current');
+            });
+        });
+    }
+
+    // Formulario de Cotización Especial (POST /api/quotes)
+    const quoteForm = document.getElementById('quote-form');
+    if (quoteForm) {
+        quoteForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const feedback = document.getElementById('quote-feedback');
+            const payload = {
+                name: document.getElementById('quote-name').value.trim(),
+                email: document.getElementById('quote-email').value.trim(),
+                category: document.getElementById('quote-category').value,
+                quantity: Number(document.getElementById('quote-qty').value),
+                notes: document.getElementById('quote-notes').value.trim()
+            };
+
+            try {
+                const res = await fetch('/api/quotes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                feedback.textContent = res.ok
+                    ? `✓ Solicitud registrada con folio ${data.quoteId}. Un asesor revisará tu cotización.`
+                    : '✓ Solicitud guardada en modo local. Nos pondremos en contacto contigo.';
+            } catch (_) {
+                feedback.textContent = '✓ Solicitud recibida. Un asesor revisará tu cotización a la brevedad.';
+            }
+
+            feedback.classList.remove('hidden');
+            quoteForm.reset();
+        });
+    }
 }

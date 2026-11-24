@@ -258,6 +258,166 @@ app.get('/api/orders', (req, res) => {
     }
 });
 
+// =========================================================================
+// 5. ENDPOINTS DE ADMINISTRACIÓN, CATÁLOGO, INVENTARIO Y CUPONES (SEBASTIÁN)
+// =========================================================================
+const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json');
+const INVENTORY_FILE = path.join(DATA_DIR, 'inventory.json');
+const COUPONS_FILE = path.join(DATA_DIR, 'coupons.json');
+const QUOTES_FILE = path.join(DATA_DIR, 'quotes.json');
+
+function initJsonFile(filePath, defaultData) {
+    if (!fs.existsSync(filePath)) {
+        fs.writeFileSync(filePath, JSON.stringify(defaultData, null, 2), 'utf8');
+    }
+}
+
+initJsonFile(PRODUCTS_FILE, [
+    { id: 'PRD-01', name: 'Camisa Manga Larga Oxford', category: 'Bordado en playeras', price: 890, description: 'Algodón Egipcio 100% con cuello estructurado.' },
+    { id: 'PRD-02', name: 'Camisa Manga Corta', category: 'Bordado en playeras', price: 790, description: 'Popelina fina respirable de corte contemporáneo.' },
+    { id: 'PRD-03', name: 'Playera Crewneck Heavyweight', category: 'Bordado en playeras', price: 520, description: 'Jersey peinado 280 GSM.' },
+    { id: 'PRD-04', name: 'Playera Tipo Polo Piqué', category: 'Bordado en playeras', price: 650, description: 'Tejido piqué doble panal.' },
+    { id: 'PRD-05', name: 'Hoodie Boxy 450 GSM', category: 'Bordado en playeras', price: 1150, description: 'Felpa francesa pesada.' },
+    { id: 'PRD-06', name: 'Gorra Estructurada 6 Paneles', category: 'Bordado en gorras', price: 450, description: 'Sarga de algodón cepillado.' },
+    { id: 'PRD-07', name: 'Gorro Beanie Fisherman', category: 'Bordado en gorras', price: 420, description: 'Tejido de punto acanalado.' },
+    { id: 'PRD-08', name: 'Taza Cerámica Personalizada 11oz', category: 'Tazas personalizadas', price: 180, description: 'Sublimación HD resistente al microondas.' },
+    { id: 'PRD-09', name: 'Vaso Térmico Acero 20oz', category: 'Vasos personalizados', price: 320, description: 'Grabado láser o impresión UV de alta durabilidad.' },
+    { id: 'PRD-10', name: 'Tarjetas de Presentación (100 pzas)', category: 'Tarjetas de presentación', price: 290, description: 'Papel couché 350g con laminado mate.' },
+    { id: 'PRD-11', name: 'Lona Publicitaria Front 13oz (m²)', category: 'Lonas publicitarias', price: 220, description: 'Impresión gran formato resistente a exterior.' },
+    { id: 'PRD-12', name: 'Plumas y Artículos Promocionales (50 pzas)', category: 'Artículos promocionales', price: 650, description: 'Serigrafía a 1 tinta para eventos o empresas.' }
+]);
+
+initJsonFile(INVENTORY_FILE, [
+    { id: 'INV-01', item: 'Playeras Lisas (Surtido Tallas)', stock: 140, minStock: 30, unit: 'pzas' },
+    { id: 'INV-02', item: 'Gorras 6 Paneles Base', stock: 85, minStock: 20, unit: 'pzas' },
+    { id: 'INV-03', item: 'Tazas Blancas Sublimables 11oz', stock: 200, minStock: 50, unit: 'pzas' },
+    { id: 'INV-04', item: 'Vasos Térmicos 20oz', stock: 45, minStock: 15, unit: 'pzas' },
+    { id: 'INV-05', item: 'Conos de Hilo Bordado Rayón', stock: 60, minStock: 15, unit: 'conos' },
+    { id: 'INV-06', item: 'Rollo Lona Front 13oz', stock: 12, minStock: 3, unit: 'rollos' }
+]);
+
+initJsonFile(COUPONS_FILE, [
+    { code: 'EXODO10', discountPercent: 10, description: '10% de descuento en primera compra', active: true },
+    { code: 'EMPRESA20', discountPercent: 20, description: '20% en pedidos corporativos', active: true }
+]);
+
+initJsonFile(QUOTES_FILE, []);
+
+function readJson(filePath) {
+    const raw = fs.readFileSync(filePath, 'utf8');
+    return raw.trim() ? JSON.parse(raw) : [];
+}
+
+function writeJson(filePath, data) {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+}
+
+// Servir carpeta /admin
+app.use('/admin', express.static(path.join(__dirname, '../admin')));
+
+// --- RF-01: CRUD de Productos y Servicios ---
+app.get('/api/products', (req, res) => res.json(readJson(PRODUCTS_FILE)));
+
+app.post('/api/products', (req, res) => {
+    const products = readJson(PRODUCTS_FILE);
+    const { name, category, price, description } = req.body;
+    if (!name || !category || !price) return res.status(400).json({ error: 'Faltan campos obligatorios' });
+    const newProduct = {
+        id: `PRD-${String(Date.now()).slice(-4)}`,
+        name,
+        category,
+        price: Number(price),
+        description: description || ''
+    };
+    products.push(newProduct);
+    writeJson(PRODUCTS_FILE, products);
+    res.status(201).json(newProduct);
+});
+
+app.put('/api/products/:id', (req, res) => {
+    const products = readJson(PRODUCTS_FILE);
+    const idx = products.findIndex(p => p.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Producto no encontrado' });
+    products[idx] = { ...products[idx], ...req.body, price: Number(req.body.price ?? products[idx].price) };
+    writeJson(PRODUCTS_FILE, products);
+    res.json(products[idx]);
+});
+
+app.delete('/api/products/:id', (req, res) => {
+    const products = readJson(PRODUCTS_FILE).filter(p => p.id !== req.params.id);
+    writeJson(PRODUCTS_FILE, products);
+    res.json({ success: true });
+});
+
+// --- RF-09: Seguimiento y actualización de estado de pedidos ---
+app.get('/api/orders/:folio', (req, res) => {
+    const orders = readJson(ORDERS_FILE);
+    const found = orders.find(o => o.orderId.toUpperCase() === req.params.folio.toUpperCase());
+    if (!found) return res.status(404).json({ error: 'Folio no encontrado' });
+    res.json(found);
+});
+
+app.patch('/api/orders/:folio/status', (req, res) => {
+    const orders = readJson(ORDERS_FILE);
+    const idx = orders.findIndex(o => o.orderId === req.params.folio);
+    if (idx === -1) return res.status(404).json({ error: 'Pedido no encontrado' });
+    orders[idx].status = req.body.status;
+    writeJson(ORDERS_FILE, orders);
+    res.json({ success: true, order: orders[idx] });
+});
+
+// --- RF-11: Inventario ---
+app.get('/api/inventory', (req, res) => res.json(readJson(INVENTORY_FILE)));
+
+app.patch('/api/inventory/:id', (req, res) => {
+    const inv = readJson(INVENTORY_FILE);
+    const idx = inv.findIndex(i => i.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Insumo no encontrado' });
+    inv[idx].stock = Number(req.body.stock);
+    writeJson(INVENTORY_FILE, inv);
+    res.json(inv[idx]);
+});
+
+// --- RF-13: Promociones y Cupones ---
+app.get('/api/coupons', (req, res) => res.json(readJson(COUPONS_FILE)));
+
+app.post('/api/coupons', (req, res) => {
+    const coupons = readJson(COUPONS_FILE);
+    const { code, discountPercent, description } = req.body;
+    if (!code || !discountPercent) return res.status(400).json({ error: 'Código y porcentaje obligatorios' });
+    const newCoupon = {
+        code: code.toUpperCase().trim(),
+        discountPercent: Number(discountPercent),
+        description: description || '',
+        active: true
+    };
+    coupons.push(newCoupon);
+    writeJson(COUPONS_FILE, coupons);
+    res.status(201).json(newCoupon);
+});
+
+app.delete('/api/coupons/:code', (req, res) => {
+    const coupons = readJson(COUPONS_FILE).filter(c => c.code !== req.params.code);
+    writeJson(COUPONS_FILE, coupons);
+    res.json({ success: true });
+});
+
+// --- RF-05: Solicitudes de Cotización Especial ---
+app.get('/api/quotes', (req, res) => res.json(readJson(QUOTES_FILE)));
+
+app.post('/api/quotes', (req, res) => {
+    const quotes = readJson(QUOTES_FILE);
+    const newQuote = {
+        quoteId: `COT-${Math.floor(1000 + Math.random() * 9000)}`,
+        createdAt: new Date().toISOString(),
+        status: 'Cotización',
+        ...req.body
+    };
+    quotes.push(newQuote);
+    writeJson(QUOTES_FILE, quotes);
+    res.status(201).json({ success: true, quote: newQuote });
+});
+
 app.listen(PORT, () => {
     console.log(`==================================================================`);
     console.log(`  ATELIER HILO / ÉXODO BORDADOS — Backend Activo en Puerto ${PORT}`);

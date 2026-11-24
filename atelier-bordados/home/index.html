@@ -17,10 +17,12 @@
     <header class="navbar">
         <div class="nav-brand">EXODO <span> </span></div>
         <nav class="nav-links">
-            <a href="#tecnicas">Bordado vs Estampado</a>
-            <a href="#laboratorio-ia">Diferenciador IA</a>
-            <a href="#coleccion">Catálogo (7 Prendas)</a>
-            <a href="../Models/models.html" class="nav-studio-link">Estudio 3D Interactivo</a>
+            <a href="#tecnicas">Técnicas</a>
+            <a href="#coleccion">Catálogo</a>
+            <a href="#galeria">Galería</a>
+            <a href="#rastreo">Rastrear Pedido</a>
+            <a href="#cotizacion">Cotizar</a>
+            <a href="../Models/models.html" class="nav-studio-link">Estudio 3D</a>
             <a href="../login/login.html" class="nav-cta">Mi Pedido →</a>
         </nav>
     </header>
@@ -156,8 +158,18 @@
             <a href="../Models/models.html" class="btn-outline">Ver las 7 Prendas en 3D →</a>
         </div>
 
-        <div class="catalog-cards-grid">
-            <div class="catalog-item" data-garment="long-shirt">
+        <!-- Filtros de Categoría -->
+        <div class="catalog-filters" id="catalog-filters">
+            <button type="button" class="filter-btn active" data-filter="all">Todos</button>
+            <button type="button" class="filter-btn" data-filter="textil">Textil & Bordado 3D</button>
+            <button type="button" class="filter-btn" data-filter="drinkware">Tazas y Vasos</button>
+            <button type="button" class="filter-btn" data-filter="imprenta">Impresión Digital</button>
+            <button type="button" class="filter-btn" data-filter="promocionales">Promocionales</button>
+        </div>
+
+        <div class="catalog-cards-grid" id="catalog-cards-grid">
+            <!-- 7 Prendas existentes (con data-category="textil") -->
+            <div class="catalog-item" data-garment="long-shirt" data-category="textil">
                 <span class="cat-num">01</span>
                 <span class="cat-badge">Sastrería</span>
                 <h3>Camisa Manga Larga Oxford</h3>
@@ -168,7 +180,7 @@
                 </div>
             </div>
 
-            <div class="catalog-item" data-garment="short-shirt">
+            <div class="catalog-item" data-garment="short-shirt" data-category="textil">
                 <span class="cat-num">02</span>
                 <span class="cat-badge">Sastrería</span>
                 <h3>Camisa Manga Corta</h3>
@@ -179,9 +191,9 @@
                 </div>
             </div>
 
-            <div class="catalog-item" data-garment="tshirt">
+            <div class="catalog-item" data-garment="tshirt" data-category="textil">
                 <span class="cat-num">03</span>
-                <span class="cat-badge">Nuevo • Streetwear</span>
+                <span class="cat-badge">Streetwear</span>
                 <h3>Playera Crewneck Heavyweight</h3>
                 <p>Jersey peinado 280 GSM con cuello rib cerrado. Perfecta para estampado HD o bordado.</p>
                 <div class="cat-footer">
@@ -190,7 +202,7 @@
                 </div>
             </div>
 
-            <div class="catalog-item" data-garment="polo">
+            <div class="catalog-item" data-garment="polo" data-category="textil">
                 <span class="cat-num">04</span>
                 <span class="cat-badge">Clásico</span>
                 <h3>Playera Tipo Polo Piqué</h3>
@@ -201,7 +213,7 @@
                 </div>
             </div>
 
-            <div class="catalog-item" data-garment="hoodie">
+            <div class="catalog-item" data-garment="hoodie" data-category="textil">
                 <span class="cat-num">05</span>
                 <span class="cat-badge">Heavyweight</span>
                 <h3>Hoodie Boxy 450 GSM</h3>
@@ -212,9 +224,9 @@
                 </div>
             </div>
 
-            <div class="catalog-item" data-garment="cap">
+            <div class="catalog-item" data-garment="cap" data-category="textil">
                 <span class="cat-num">06</span>
-                <span class="cat-badge">Nuevo • Headwear</span>
+                <span class="cat-badge">Headwear</span>
                 <h3>Gorra Estructurada 6 Paneles</h3>
                 <p>Sarga de algodón cepillado con visera curva y corona frontal para bordado 3D.</p>
                 <div class="cat-footer">
@@ -223,15 +235,195 @@
                 </div>
             </div>
 
-            <div class="catalog-item" data-garment="beanie">
+            <div class="catalog-item" data-garment="beanie" data-category="textil">
                 <span class="cat-num">07</span>
-                <span class="cat-badge">Nuevo • Headwear</span>
+                <span class="cat-badge">Headwear</span>
                 <h3>Gorro Beanie Fisherman</h3>
                 <p>Tejido de punto acanalado con doblez frontal grueso para bordado de escudo.</p>
                 <div class="cat-footer">
                     <strong>$420 MXN</strong>
                     <span>Configurar en 3D →</span>
                 </div>
+            </div>
+
+            <!-- Nuevas categorías de Imprenta y Promocionales -->
+            <div class="catalog-item non-3d-item" data-category="drinkware" data-product-name="Taza Cerámica Sublimada 11 oz" data-product-price="145">
+                <span class="cat-num">08</span>
+                <span class="cat-badge">Tazas y Vasos</span>
+                <h3>Taza Cerámica Sublimada 11 oz</h3>
+                <p>Acabado brillante grado AA resistente a microondas con impresión full-color envolvente.</p>
+                <div class="cat-footer">
+                    <strong>$145 MXN</strong>
+                    <span>Cotizar / Ordenar →</span>
+                </div>
+            </div>
+
+            <div class="catalog-item non-3d-item" data-category="drinkware" data-product-name="Vaso Térmico Acero Inoxidable 20 oz" data-product-price="320">
+                <span class="cat-num">09</span>
+                <span class="cat-badge">Tazas y Vasos</span>
+                <h3>Vaso Térmico Acero 20 oz</h3>
+                <p>Doble pared aislada con tapa hermética y grabado láser o impresión UV de alta durabilidad.</p>
+                <div class="cat-footer">
+                    <strong>$320 MXN</strong>
+                    <span>Cotizar / Ordenar →</span>
+                </div>
+            </div>
+
+            <div class="catalog-item non-3d-item" data-category="imprenta" data-product-name="Tarjetas de Presentación (1,000 pzas)" data-product-price="480">
+                <span class="cat-num">10</span>
+                <span class="cat-badge">Impresión Digital</span>
+                <h3>Tarjetas de Presentación (Millar)</h3>
+                <p>Papel couché 350g laminado mate a dos caras con opción de barniz a registro.</p>
+                <div class="cat-footer">
+                    <strong>$480 MXN</strong>
+                    <span>Cotizar / Ordenar →</span>
+                </div>
+            </div>
+
+            <div class="catalog-item non-3d-item" data-category="imprenta" data-product-name="Lona Publicitaria Gran Formato (m²)" data-product-price="190">
+                <span class="cat-num">11</span>
+                <span class="cat-badge">Impresión Digital</span>
+                <h3>Lona Publicitaria Frontlit 13 oz</h3>
+                <p>Impresión gran formato en alta resolución con bastilla perimetral y ojillos metálicos.</p>
+                <div class="cat-footer">
+                    <strong>$190 MXN / m²</strong>
+                    <span>Cotizar / Ordenar →</span>
+                </div>
+            </div>
+
+            <div class="catalog-item non-3d-item" data-category="promocionales" data-product-name="Kit Promocional Corporativo" data-product-price="390">
+                <span class="cat-num">12</span>
+                <span class="cat-badge">Promocionales</span>
+                <h3>Kit Corporativo (Libreta + Pluma + Termo)</h3>
+                <p>Artículos promocionales personalizados con logotipo de empresa para eventos y onboarding.</p>
+                <div class="cat-footer">
+                    <strong>$390 MXN</strong>
+                    <span>Cotizar / Ordenar →</span>
+                </div>
+            </div>
+        </div>
+        </div>
+    </section>
+
+    <!-- 03 / GALERÍA DE TRABAJOS REALIZADOS -->
+    <section class="gallery-section" id="galeria">
+        <div class="section-header">
+            <div>
+                <p class="eyebrow">03 / PORTAFOLIO DE TALLER</p>
+                <h2 class="section-title">Trabajos terminados con <em>precisión artesanal</em></h2>
+            </div>
+        </div>
+
+        <div class="gallery-grid">
+            <article class="gallery-card">
+                <div class="gallery-visual" style="background: linear-gradient(135deg, #1b1b1d, #323236);">
+                    <span class="gallery-tag">BORDADO 3D • 8,400 PUNTADAS</span>
+                    <div class="gallery-emblem">✦ ESCUDO CORPORATIVO</div>
+                </div>
+                <div class="gallery-info">
+                    <h3>Uniformes Ejecutivos Oxford</h3>
+                    <p>Bordado en hilo satinado dorado sobre camisa 100% algodón egipcio para despacho arquitectónico.</p>
+                </div>
+            </article>
+
+            <article class="gallery-card">
+                <div class="gallery-visual" style="background: linear-gradient(135deg, #4b1d24, #261013);">
+                    <span class="gallery-tag">HEADWEAR • RELIEVE PUFF</span>
+                    <div class="gallery-emblem">◈ GORRA 6 PANELES</div>
+                </div>
+                <div class="gallery-info">
+                    <h3>Colección Gorras Sarga Cepillada</h3>
+                    <p>Bordado frontal de alto relieve con hilo rayon resistente a intemperie y lavado industrial.</p>
+                </div>
+            </article>
+
+            <article class="gallery-card">
+                <div class="gallery-visual" style="background: linear-gradient(135deg, #1e2d27, #111a16);">
+                    <span class="gallery-tag">ESTAMPADO DTF HD • 300 DPI</span>
+                    <div class="gallery-emblem">❖ STREETWEAR 280 GSM</div>
+                </div>
+                <div class="gallery-info">
+                    <h3>Playeras Heavyweight Edición Limitada</h3>
+                    <p>Transferencia serigráfica de alta definición con degradados complejos y tacto ultra suave.</p>
+                </div>
+            </article>
+
+            <article class="gallery-card">
+                <div class="gallery-visual" style="background: linear-gradient(135deg, #3c3226, #1d1812);">
+                    <span class="gallery-tag">IMPRENTA & PROMOCIONALES</span>
+                    <div class="gallery-emblem">▣ KIT EMPRESARIAL</div>
+                </div>
+                <div class="gallery-info">
+                    <h3>Tazas, Termos y Papelería Corporativa</h3>
+                    <p>Sublimación envolvente en cerámica, grabado láser en acero inoxidable y tarjetas laminadas mate.</p>
+                </div>
+            </article>
+        </div>
+    </section>
+
+    <!-- 04 / SEGUIMIENTO DE PRODUCCIÓN Y SOLICITUD DE COTIZACIONES -->
+    <section class="operations-section" id="rastreo">
+        <div class="ops-grid">
+            <!-- Buscador de Seguimiento de Pedido -->
+            <div class="ops-card">
+                <p class="eyebrow">04 / TRAZABILIDAD EN TIEMPO REAL</p>
+                <h2 class="ops-title">Rastrea el estado de tu pedido</h2>
+                <p class="ops-desc">Ingresa tu folio de orden (ej. <strong>AH-2026-1024</strong>) para consultar en qué etapa de taller se encuentra.</p>
+
+                <form id="tracking-form" class="tracking-form">
+                    <input type="text" id="tracking-folio-input" placeholder="Ej. AH-2026-4821" required>
+                    <button type="submit" class="btn-primary">Consultar Folio</button>
+                </form>
+
+                <div id="tracking-result" class="tracking-result hidden">
+                    <div class="tracking-header">
+                        <div>
+                            <span class="track-label">FOLIO CONSULTADO</span>
+                            <strong id="track-folio-display">AH-2026-0000</strong>
+                        </div>
+                        <span id="track-status-pill" class="verdict-pill">En producción</span>
+                    </div>
+                    <p id="track-garment-info" class="track-meta"></p>
+
+                    <!-- Línea de tiempo de las 7 etapas -->
+                    <ol class="production-steps" id="production-steps-list">
+                        <li data-step="Cotización">1. Cotización</li>
+                        <li data-step="Diseño aprobado">2. Diseño aprobado</li>
+                        <li data-step="En producción">3. En producción</li>
+                        <li data-step="En bordado o impresión">4. En bordado o impresión</li>
+                        <li data-step="Empaque">5. Empaque</li>
+                        <li data-step="Enviado">6. Enviado</li>
+                        <li data-step="Entregado">7. Entregado</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Formulario de Cotización Especial -->
+            <div class="ops-card" id="cotizacion">
+                <p class="eyebrow">05 / PROYECTOS A MEDIDA Y MAYOREO</p>
+                <h2 class="ops-title">Solicitar Cotización Especial</h2>
+                <p class="ops-desc">¿Requieres pedidos por volumen, lonas, tarjetas o artículos promocionales personalizados? Envíanos los detalles.</p>
+
+                <form id="quote-form" class="quote-form">
+                    <div class="form-row-2">
+                        <input type="text" id="quote-name" placeholder="Tu nombre o empresa" required>
+                        <input type="email" id="quote-email" placeholder="Correo electrónico" required>
+                    </div>
+                    <div class="form-row-2">
+                        <select id="quote-category" required>
+                            <option value="">Selecciona categoría...</option>
+                            <option value="Bordado en playeras / camisas">Bordado en playeras / camisas</option>
+                            <option value="Bordado en gorras">Bordado en gorras</option>
+                            <option value="Tazas y vasos personalizados">Tazas y vasos personalizados</option>
+                            <option value="Tarjetas y lonas publicitarias">Tarjetas y lonas publicitarias</option>
+                            <option value="Artículos promocionales">Artículos promocionales</option>
+                        </select>
+                        <input type="number" id="quote-qty" min="1" placeholder="Cantidad estimada (pzas)" required>
+                    </div>
+                    <textarea id="quote-notes" rows="3" placeholder="Describe tu diseño, medidas, colores o fecha límite de entrega..." required></textarea>
+                    <button type="submit" class="btn-primary">Enviar Solicitud de Cotización →</button>
+                    <p id="quote-feedback" class="quote-feedback hidden"></p>
+                </form>
             </div>
         </div>
     </section>

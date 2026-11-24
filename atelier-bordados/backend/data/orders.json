@@ -1,1 +1,27 @@
-[]
+[
+  {
+    "orderId": "AH-2026-5250",
+    "createdAt": "2026-11-23T23:58:30.074Z",
+    "status": "En bordado o impresión",
+    "user": {
+      "name": "Cliente Verificado (Google OAuth)",
+      "email": "cliente.verificado@gmail.com"
+    },
+    "order": {
+      "garmentType": "long-shirt",
+      "garmentName": "Camisa Manga Larga Oxford",
+      "technique": "embroidery",
+      "techniqueName": "Bordado 3D de Alta Precisión",
+      "price": 890,
+      "fabricColor": "#5c242b",
+      "fabricColorName": "Vino Burdeos",
+      "logoX": 0.22,
+      "logoY": 0.2,
+      "logoScale": 0.26,
+      "stitchDensity": 3,
+      "stitchCount": 5907,
+      "printAreaCm2": 85,
+      "embroideryImageUrl": "/api/uploads/AH-2026-5250.png"
+    }
+  }
+]

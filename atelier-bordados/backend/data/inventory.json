@@ -1,0 +1,44 @@
+[
+  {
+    "id": "INV-01",
+    "item": "Playeras Lisas (Surtido Tallas)",
+    "stock": 150,
+    "minStock": 30,
+    "unit": "pzas"
+  },
+  {
+    "id": "INV-02",
+    "item": "Gorras 6 Paneles Base",
+    "stock": 85,
+    "minStock": 20,
+    "unit": "pzas"
+  },
+  {
+    "id": "INV-03",
+    "item": "Tazas Blancas Sublimables 11oz",
+    "stock": 200,
+    "minStock": 50,
+    "unit": "pzas"
+  },
+  {
+    "id": "INV-04",
+    "item": "Vasos Térmicos 20oz",
+    "stock": 45,
+    "minStock": 15,
+    "unit": "pzas"
+  },
+  {
+    "id": "INV-05",
+    "item": "Conos de Hilo Bordado Rayón",
+    "stock": 60,
+    "minStock": 15,
+    "unit": "conos"
+  },
+  {
+    "id": "INV-06",
+    "item": "Rollo Lona Front 13oz",
+    "stock": 12,
+    "minStock": 3,
+    "unit": "rollos"
+  }
+]

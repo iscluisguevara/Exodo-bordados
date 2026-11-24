@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EXODO — Panel Administrativo y Taller</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+    <header class="admin-navbar">
+        <div class="brand">EXODO <span>/ PANEL GERENCIAL</span></div>
+        <nav>
+            <a href="../home/index.html">← Volver a Tienda</a>
+            <a href="../Models/models.html">Estudio 3D</a>
+        </nav>
+    </header>
+
+    <main class="admin-container">
+        <!-- DASHBOARD KPI (RF-18) -->
+        <section class="kpi-grid">
+            <div class="kpi-card">
+                <span class="kpi-label">VENTAS TOTALES</span>
+                <strong id="kpi-sales">$0 MXN</strong>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">PEDIDOS DEL MES</span>
+                <strong id="kpi-orders">0</strong>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">EN PRODUCCIÓN</span>
+                <strong id="kpi-production">0</strong>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">COTIZACIONES PENDIENTES</span>
+                <strong id="kpi-quotes">0</strong>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">CLIENTES REGISTRADOS</span>
+                <strong id="kpi-clients">0</strong>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">INVENTARIO BASE</span>
+                <strong id="kpi-stock">0 u.</strong>
+            </div>
+        </section>
+
+        <!-- PESTAÑAS DE MÓDULOS -->
+        <div class="tabs-bar">
+            <button class="tab-btn active" data-tab="orders">Pedidos y Producción</button>
+            <button class="tab-btn" data-tab="products">Productos y Servicios</button>
+            <button class="tab-btn" data-tab="inventory">Inventario</button>
+            <button class="tab-btn" data-tab="coupons">Promociones</button>
+            <button class="tab-btn" data-tab="reports">Reportes de Ventas</button>
+        </div>
+
+        <!-- TAB 1: PEDIDOS Y SEGUIMIENTO DE PRODUCCIÓN -->
+        <section class="tab-panel active" id="tab-orders">
+            <h2>Control de Pedidos y Etapas de Taller</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Folio</th>
+                            <th>Cliente</th>
+                            <th>Producto / Técnica</th>
+                            <th>Diseño</th>
+                            <th>Total</th>
+                            <th>Etapa de Producción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orders-tbody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- TAB 2: CRUD DE PRODUCTOS Y SERVICIOS -->
+        <section class="tab-panel" id="tab-products">
+            <h2>Gestión de Catálogo (Imprenta, Bordados y Promocionales)</h2>
+            <form id="product-form" class="inline-form">
+                <input type="text" id="prod-name" placeholder="Nombre del producto (ej. Taza Mágica)" required>
+                <select id="prod-category" required>
+                    <option value="Impresión digital">Impresión digital</option>
+                    <option value="Bordado en playeras">Bordado en playeras</option>
+                    <option value="Bordado en gorras">Bordado en gorras</option>
+                    <option value="Tazas personalizadas">Tazas personalizadas</option>
+                    <option value="Vasos personalizados">Vasos personalizados</option>
+                    <option value="Tarjetas de presentación">Tarjetas de presentación</option>
+                    <option value="Lonas publicitarias">Lonas publicitarias</option>
+                    <option value="Artículos promocionales">Artículos promocionales</option>
+                </select>
+                <input type="number" id="prod-price" placeholder="Precio MXN" min="1" required>
+                <input type="text" id="prod-desc" placeholder="Descripción breve">
+                <button type="submit" class="btn-dark">+ Agregar Producto</button>
+            </form>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Producto</th>
+                            <th>Categoría</th>
+                            <th>Precio</th>
+                            <th>Descripción</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="products-tbody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- TAB 3: INVENTARIO -->
+        <section class="tab-panel" id="tab-inventory">
+            <h2>Existencias de Productos Base e Insumos</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Insumo / Prenda Base</th>
+                            <th>Stock Actual</th>
+                            <th>Mínimo</th>
+                            <th>Estado</th>
+                            <th>Ajustar Stock</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventory-tbody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- TAB 4: PROMOCIONES Y CUPONES -->
+        <section class="tab-panel" id="tab-coupons">
+            <h2>Cupones y Descuentos Promocionales</h2>
+            <form id="coupon-form" class="inline-form">
+                <input type="text" id="coup-code" placeholder="Código (ej. VERANO15)" required>
+                <input type="number" id="coup-percent" placeholder="% Descuento" min="1" max="90" required>
+                <input type="text" id="coup-desc" placeholder="Descripción de la promoción">
+                <button type="submit" class="btn-dark">+ Crear Cupón</button>
+            </form>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Descuento</th>
+                            <th>Descripción</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="coupons-tbody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- TAB 5: REPORTES DE VENTAS -->
+        <section class="tab-panel" id="tab-reports">
+            <h2>Resumen Ejecutivo y Reportes</h2>
+            <div class="reports-grid">
+                <div class="report-box">
+                    <h3>Productos Más Vendidos</h3>
+                    <ul id="report-top-products"></ul>
+                </div>
+                <div class="report-box">
+                    <h3>Clientes Frecuentes</h3>
+                    <ul id="report-top-clients"></ul>
+                </div>
+                <div class="report-box">
+                    <h3>Cotizaciones Especiales Recibidas</h3>
+                    <ul id="report-quotes-list"></ul>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="admin.js"></script>
+</body>
+</html>

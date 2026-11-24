@@ -1,0 +1,86 @@
+[
+  {
+    "id": "PRD-01",
+    "name": "Camisa Manga Larga Oxford",
+    "category": "Bordado en playeras",
+    "price": 890,
+    "description": "Algodón Egipcio 100% con cuello estructurado."
+  },
+  {
+    "id": "PRD-02",
+    "name": "Camisa Manga Corta",
+    "category": "Bordado en playeras",
+    "price": 790,
+    "description": "Popelina fina respirable de corte contemporáneo."
+  },
+  {
+    "id": "PRD-03",
+    "name": "Playera Crewneck Heavyweight",
+    "category": "Bordado en playeras",
+    "price": 520,
+    "description": "Jersey peinado 280 GSM."
+  },
+  {
+    "id": "PRD-04",
+    "name": "Playera Tipo Polo Piqué",
+    "category": "Bordado en playeras",
+    "price": 650,
+    "description": "Tejido piqué doble panal."
+  },
+  {
+    "id": "PRD-05",
+    "name": "Hoodie Boxy 450 GSM",
+    "category": "Bordado en playeras",
+    "price": 1150,
+    "description": "Felpa francesa pesada."
+  },
+  {
+    "id": "PRD-06",
+    "name": "Gorra Estructurada 6 Paneles",
+    "category": "Bordado en gorras",
+    "price": 450,
+    "description": "Sarga de algodón cepillado."
+  },
+  {
+    "id": "PRD-07",
+    "name": "Gorro Beanie Fisherman",
+    "category": "Bordado en gorras",
+    "price": 420,
+    "description": "Tejido de punto acanalado."
+  },
+  {
+    "id": "PRD-08",
+    "name": "Taza Cerámica Personalizada 11oz",
+    "category": "Tazas personalizadas",
+    "price": 180,
+    "description": "Sublimación HD resistente al microondas."
+  },
+  {
+    "id": "PRD-09",
+    "name": "Vaso Térmico Acero 20oz",
+    "category": "Vasos personalizados",
+    "price": 320,
+    "description": "Grabado láser o impresión UV de alta durabilidad."
+  },
+  {
+    "id": "PRD-10",
+    "name": "Tarjetas de Presentación (100 pzas)",
+    "category": "Tarjetas de presentación",
+    "price": 290,
+    "description": "Papel couché 350g con laminado mate."
+  },
+  {
+    "id": "PRD-11",
+    "name": "Lona Publicitaria Front 13oz (m²)",
+    "category": "Lonas publicitarias",
+    "price": 220,
+    "description": "Impresión gran formato resistente a exterior."
+  },
+  {
+    "id": "PRD-12",
+    "name": "Plumas y Artículos Promocionales (50 pzas)",
+    "category": "Artículos promocionales",
+    "price": 650,
+    "description": "Serigrafía a 1 tinta para eventos o empresas."
+  }
+]

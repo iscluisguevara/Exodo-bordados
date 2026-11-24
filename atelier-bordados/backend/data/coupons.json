@@ -1,0 +1,14 @@
+[
+  {
+    "code": "EXODO10",
+    "discountPercent": 10,
+    "description": "10% de descuento en primera compra",
+    "active": true
+  },
+  {
+    "code": "EMPRESA20",
+    "discountPercent": 20,
+    "description": "20% en pedidos corporativos",
+    "active": true
+  }
+]
