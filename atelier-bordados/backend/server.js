@@ -811,7 +811,6 @@ app.get('/api/orders', (req, res) => {
 // =========================================================================
 const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json');
 const INVENTORY_FILE = path.join(DATA_DIR, 'inventory.json');
-const COUPONS_FILE = path.join(DATA_DIR, 'coupons.json');
 const QUOTES_FILE = path.join(DATA_DIR, 'quotes.json');
 
 function initJsonFile(filePath, defaultData) {
@@ -844,30 +843,16 @@ initJsonFile(INVENTORY_FILE, [
     { id: 'INV-06', item: 'Rollo Lona Front 13oz', stock: 12, minStock: 3, unit: 'rollos' }
 ]);
 
-initJsonFile(COUPONS_FILE, [
-    { code: 'EXODO10', discountPercent: 10, description: '10% de descuento en primera compra', active: true },
-    { code: 'EMPRESA20', discountPercent: 20, description: '20% en pedidos corporativos', active: true }
-]);
-
 initJsonFile(QUOTES_FILE, []);
-
-function readJson(filePath) {
-    const raw = fs.readFileSync(filePath, 'utf8');
-    return raw.trim() ? JSON.parse(raw) : [];
-}
-
-function writeJson(filePath, data) {
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
-}
 
 // Servir carpeta /admin
 app.use('/admin', express.static(path.join(__dirname, '../admin')));
 
-// --- RF-01: CRUD de Productos y Servicios ---
-app.get('/api/products', (req, res) => res.json(readJson(PRODUCTS_FILE)));
+// CRUD de Productos y Servicios
+app.get('/api/products', (req, res) => res.json(readJsonArray(PRODUCTS_FILE, [])));
 
 app.post('/api/products', (req, res) => {
-    const products = readJson(PRODUCTS_FILE);
+    const products = readJsonArray(PRODUCTS_FILE, []);
     const { name, category, price, description } = req.body;
     if (!name || !category || !price) return res.status(400).json({ error: 'Faltan campos obligatorios' });
     const newProduct = {
@@ -878,97 +863,30 @@ app.post('/api/products', (req, res) => {
         description: description || ''
     };
     products.push(newProduct);
-    writeJson(PRODUCTS_FILE, products);
+    writeJsonArray(PRODUCTS_FILE, products);
     res.status(201).json(newProduct);
 });
 
 app.put('/api/products/:id', (req, res) => {
-    const products = readJson(PRODUCTS_FILE);
+    const products = readJsonArray(PRODUCTS_FILE, []);
     const idx = products.findIndex(p => p.id === req.params.id);
     if (idx === -1) return res.status(404).json({ error: 'Producto no encontrado' });
     products[idx] = { ...products[idx], ...req.body, price: Number(req.body.price ?? products[idx].price) };
-    writeJson(PRODUCTS_FILE, products);
+    writeJsonArray(PRODUCTS_FILE, products);
     res.json(products[idx]);
 });
 
 app.delete('/api/products/:id', (req, res) => {
-    const products = readJson(PRODUCTS_FILE).filter(p => p.id !== req.params.id);
-    writeJson(PRODUCTS_FILE, products);
+    const products = readJsonArray(PRODUCTS_FILE, []).filter(p => p.id !== req.params.id);
+    writeJsonArray(PRODUCTS_FILE, products);
     res.json({ success: true });
 });
 
-// --- RF-09: Seguimiento y actualización de estado de pedidos ---
-app.get('/api/orders/:folio', (req, res) => {
-    const orders = readJson(ORDERS_FILE);
-    const found = orders.find(o => o.orderId.toUpperCase() === req.params.folio.toUpperCase());
-    if (!found) return res.status(404).json({ error: 'Folio no encontrado' });
-    res.json(found);
-});
-
-app.patch('/api/orders/:folio/status', (req, res) => {
-    const orders = readJson(ORDERS_FILE);
-    const idx = orders.findIndex(o => o.orderId === req.params.folio);
-    if (idx === -1) return res.status(404).json({ error: 'Pedido no encontrado' });
-    orders[idx].status = req.body.status;
-    writeJson(ORDERS_FILE, orders);
-    res.json({ success: true, order: orders[idx] });
-});
-
-// --- RF-11: Inventario ---
-app.get('/api/inventory', (req, res) => res.json(readJson(INVENTORY_FILE)));
-
-app.patch('/api/inventory/:id', (req, res) => {
-    const inv = readJson(INVENTORY_FILE);
-    const idx = inv.findIndex(i => i.id === req.params.id);
-    if (idx === -1) return res.status(404).json({ error: 'Insumo no encontrado' });
-    inv[idx].stock = Number(req.body.stock);
-    writeJson(INVENTORY_FILE, inv);
-    res.json(inv[idx]);
-});
-
-// --- RF-13: Promociones y Cupones ---
-app.get('/api/coupons', (req, res) => res.json(readJson(COUPONS_FILE)));
-
-app.post('/api/coupons', (req, res) => {
-    const coupons = readJson(COUPONS_FILE);
-    const { code, discountPercent, description } = req.body;
-    if (!code || !discountPercent) return res.status(400).json({ error: 'Código y porcentaje obligatorios' });
-    const newCoupon = {
-        code: code.toUpperCase().trim(),
-        discountPercent: Number(discountPercent),
-        description: description || '',
-        active: true
-    };
-    coupons.push(newCoupon);
-    writeJson(COUPONS_FILE, coupons);
-    res.status(201).json(newCoupon);
-});
-
-app.delete('/api/coupons/:code', (req, res) => {
-    const coupons = readJson(COUPONS_FILE).filter(c => c.code !== req.params.code);
-    writeJson(COUPONS_FILE, coupons);
-    res.json({ success: true });
-});
-
-// --- RF-05: Solicitudes de Cotización Especial ---
-app.get('/api/quotes', (req, res) => res.json(readJson(QUOTES_FILE)));
-
-app.post('/api/quotes', (req, res) => {
-    const quotes = readJson(QUOTES_FILE);
-    const newQuote = {
-        quoteId: `COT-${Math.floor(1000 + Math.random() * 9000)}`,
-        createdAt: new Date().toISOString(),
-        status: 'Cotización',
-        ...req.body
-    };
-    quotes.push(newQuote);
-    writeJson(QUOTES_FILE, quotes);
-    res.status(201).json({ success: true, quote: newQuote });
-});
+// Seguimiento y actualización de estado de pedidos
 app.get('/api/orders/:orderId', (req, res) => {
     try {
         const orders = readJsonArray(ORDERS_FILE, []);
-        const found = orders.find(o => o.orderId === req.params.orderId);
+        const found = orders.find(o => o.orderId.toUpperCase() === req.params.orderId.toUpperCase());
         if (!found) {
             return res.status(404).json({
                 success: false,
@@ -982,16 +900,84 @@ app.get('/api/orders/:orderId', (req, res) => {
     }
 });
 
-// ============================================================================
-// SECCIÓN INFERIOR RESERVADA: RUTAS ADMINISTRATIVAS
-// (Dejar libre este bloque para futuras rutas de panel administrativo)
-// ============================================================================
+app.patch('/api/orders/:folio/status', (req, res) => {
+    const orders = readJsonArray(ORDERS_FILE, []);
+    const idx = orders.findIndex(o => o.orderId === req.params.folio);
+    if (idx === -1) return res.status(404).json({ error: 'Pedido no encontrado' });
+    orders[idx].status = req.body.status;
+    writeJsonArray(ORDERS_FILE, orders);
+    res.json({ success: true, order: orders[idx] });
+});
+
+// Inventario
+app.get('/api/inventory', (req, res) => res.json(readJsonArray(INVENTORY_FILE, [])));
+
+app.patch('/api/inventory/:id', (req, res) => {
+    const inv = readJsonArray(INVENTORY_FILE, []);
+    const idx = inv.findIndex(i => i.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Insumo no encontrado' });
+    inv[idx].stock = Number(req.body.stock);
+    writeJsonArray(INVENTORY_FILE, inv);
+    res.json(inv[idx]);
+});
+
+// Promociones y Cupones (compatible con el validador de checkout)
+app.get('/api/coupons', (req, res) => {
+    const coupons = readJsonArray(COUPONS_FILE, DEFAULT_COUPONS).map(c => ({
+        ...c,
+        discountPercent: c.discountPercent ?? (c.type === 'percentage' ? c.value : 0)
+    }));
+    res.json(coupons);
+});
+
+app.post('/api/coupons', (req, res) => {
+    const coupons = readJsonArray(COUPONS_FILE, DEFAULT_COUPONS);
+    const { code, discountPercent, description } = req.body;
+    if (!code || !discountPercent) return res.status(400).json({ error: 'Código y porcentaje obligatorios' });
+    const newCoupon = {
+        code: String(code).toUpperCase().trim(),
+        type: 'percentage',
+        value: Number(discountPercent),
+        discountPercent: Number(discountPercent),
+        minSubtotal: 0,
+        active: true,
+        expiresAt: '2027-12-31T23:59:59.000Z',
+        description: description || ''
+    };
+    coupons.push(newCoupon);
+    writeJsonArray(COUPONS_FILE, coupons);
+    res.status(201).json(newCoupon);
+});
+
+app.delete('/api/coupons/:code', (req, res) => {
+    const coupons = readJsonArray(COUPONS_FILE, DEFAULT_COUPONS).filter(c => c.code !== req.params.code);
+    writeJsonArray(COUPONS_FILE, coupons);
+    res.json({ success: true });
+});
+
+// Solicitudes de Cotización Especial
+app.get('/api/quotes', (req, res) => res.json(readJsonArray(QUOTES_FILE, [])));
+
+app.post('/api/quotes', (req, res) => {
+    const quotes = readJsonArray(QUOTES_FILE, []);
+    const quoteId = `COT-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const newQuote = {
+        quoteId,
+        createdAt: new Date().toISOString(),
+        status: 'Cotización',
+        ...req.body
+    };
+    quotes.push(newQuote);
+    writeJsonArray(QUOTES_FILE, quotes);
+    res.status(201).json({ success: true, quoteId, quote: newQuote });
+});
 
 app.listen(PORT, () => {
     console.log(`==================================================================`);
     console.log(`  ATELIER HILO / ÉXODO BORDADOS — Backend Activo en Puerto ${PORT}`);
     console.log(`  App URL:         ${APP_URL}`);
     console.log(`  Frontend Home:   ${APP_URL}/home/index.html`);
+    console.log(`  Panel Admin:     ${APP_URL}/admin/admin.html`);
     console.log(`  Estudio 3D:      ${APP_URL}/Models/models.html`);
     console.log(`  Checkout Login:  ${APP_URL}/login/login.html`);
     console.log(`  Healthcheck API: ${APP_URL}/api/health`);
