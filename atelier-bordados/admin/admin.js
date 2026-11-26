@@ -111,12 +111,15 @@ function renderProducts(products) {
             <td>${p.category}</td>
             <td>$${Number(p.price).toLocaleString()} MXN</td>
             <td>${p.description || ''}</td>
-            <td><button class="btn-danger" onclick="deleteProduct('${p.id}')">Eliminar</button></td>
+            <td><button class="btn-danger" onclick="deleteProduct('${p.id}', '${p.name.replace(/'/g, "\\'")}')">Eliminar</button></td>
         </tr>
     `).join('');
 }
 
-async function deleteProduct(id) {
+async function deleteProduct(id, name) {
+    const confirmed = confirm(`¿Estás seguro de que quieres eliminar "${name}"?\nEsta acción no se puede deshacer.`);
+    if (!confirmed) return;
+
     await fetch(`/api/products/${id}`, { method: 'DELETE' });
     loadAllDashboardData();
 }
@@ -209,7 +212,8 @@ function setupForms() {
                 name: document.getElementById('prod-name').value.trim(),
                 category: document.getElementById('prod-category').value,
                 price: document.getElementById('prod-price').value,
-                description: document.getElementById('prod-desc').value.trim()
+                description: document.getElementById('prod-desc').value.trim(),
+                model3d: document.getElementById('prod-model3d').value
             })
         });
         e.target.reset();

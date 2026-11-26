@@ -853,14 +853,15 @@ app.get('/api/products', (req, res) => res.json(readJsonArray(PRODUCTS_FILE, [])
 
 app.post('/api/products', (req, res) => {
     const products = readJsonArray(PRODUCTS_FILE, []);
-    const { name, category, price, description } = req.body;
+    const { name, category, price, description, model3d } = req.body;
     if (!name || !category || !price) return res.status(400).json({ error: 'Faltan campos obligatorios' });
     const newProduct = {
         id: `PRD-${String(Date.now()).slice(-4)}`,
         name,
         category,
         price: Number(price),
-        description: description || ''
+        description: description || '',
+        model3d: model3d || 'none'
     };
     products.push(newProduct);
     writeJsonArray(PRODUCTS_FILE, products);

@@ -417,3 +417,72 @@ function initHomeEvents() {
         });
     }
 }
+
+// Cargar productos dinámicos agregados desde el Panel Admin en el catálogo principal
+async function loadAdminCatalogProducts() {
+    try {
+        const res = await fetch('/api/products');
+        if (!res.ok) return;
+        const products = await res.json();
+
+        const baseIds = new Set([
+            'PRD-01', 'PRD-02', 'PRD-03', 'PRD-04', 'PRD-05', 'PRD-06',
+            'PRD-07', 'PRD-08', 'PRD-09', 'PRD-10', 'PRD-11', 'PRD-12'
+        ]);
+        const extraProducts = products.filter(p => !baseIds.has(p.id));
+        if (!extraProducts.length) return;
+
+        const grid = document.getElementById('catalog-cards-grid');
+        if (!grid) return;
+
+        let count = grid.querySelectorAll('.catalog-item').length;
+
+        const categoryMap = {
+            'Bordado en playeras': 'textil',
+            'Bordado en gorras': 'textil',
+            'Tazas personalizadas': 'drinkware',
+            'Vasos personalizados': 'drinkware',
+            'Impresión digital': 'imprenta',
+            'Tarjetas de presentación': 'imprenta',
+            'Lonas publicitarias': 'imprenta',
+            'Artículos promocionales': 'promocionales'
+        };
+
+        extraProducts.forEach(p => {
+            count++;
+            const has3D = p.model3d && p.model3d !== 'none';
+            const filterSlug = categoryMap[p.category] || 'promocionales';
+
+            const card = document.createElement('div');
+            card.className = 'catalog-item';
+            card.dataset.category = filterSlug;
+            if (has3D) card.dataset.garment = p.model3d;
+
+            card.innerHTML = `
+                <span class="cat-num">${String(count).padStart(2, '0')}</span>
+                <span class="cat-badge">${p.category}</span>
+                <h3>${p.name}</h3>
+                <p>${p.description || 'Producto personalizado bajo pedido.'}</p>
+                <div class="cat-footer">
+                    <strong>$${Number(p.price).toLocaleString()} MXN</strong>
+                    <span>${has3D ? 'Configurar en 3D →' : 'Cotizar / Ordenar →'}</span>
+                </div>
+            `;
+
+            card.addEventListener('click', () => {
+                if (has3D) {
+                    window.location.href = `../Models/models.html?garment=${encodeURIComponent(p.model3d)}`;
+                } else {
+                    const quoteSection = document.getElementById('cotizacion');
+                    if (quoteSection) quoteSection.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+
+            grid.appendChild(card);
+        });
+    } catch (err) {
+        console.warn('No se pudieron cargar los productos nuevos en el inicio:', err);
+    }
+}
+
+window.addEventListener('DOMContentLoaded', loadAdminCatalogProducts);

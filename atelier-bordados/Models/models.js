@@ -1692,3 +1692,62 @@ function initUIEvents() {
         window.location.href = '../login/login.html';
     });
 }
+// Cargar prendas extra creadas desde el Panel Admin con modelo 3D asignado
+async function loadAdmin3DProducts() {
+    try {
+        const res = await fetch('/api/products');
+        if (!res.ok) return;
+        const products = await res.json();
+        const custom3D = products.filter(p => p.model3d && p.model3d !== 'none' && GARMENT_CATALOG[p.model3d]);
+        if (!custom3D.length) return;
+
+        const list = document.getElementById('garment-list');
+        if (!list) return;
+
+        let indexCount = list.querySelectorAll('.garment-card').length;
+
+        custom3D.forEach(p => {
+            indexCount++;
+            const base = GARMENT_CATALOG[p.model3d];
+            const btn = document.createElement('button');
+            btn.className = 'garment-card';
+            btn.dataset.model = p.model3d;
+            btn.dataset.category = base.category;
+            btn.dataset.customId = p.id;
+            btn.innerHTML = `
+                <span class="garment-index">${String(indexCount).padStart(2, '0')}</span>
+                <div class="garment-info">
+                    <strong>${p.name}</strong>
+                    <small>${p.description || base.weaveLabel}</small>
+                </div>
+                <span class="garment-price">$${Number(p.price).toLocaleString()}</span>
+            `;
+
+            btn.addEventListener('click', () => {
+                // Reutiliza la carga 3D de la prenda base
+                const baseCard = list.querySelector(`.garment-card[data-model="${p.model3d}"]:not([data-custom-id])`);
+                if (baseCard) baseCard.click();
+
+                // Marca esta tarjeta personalizada como activa y aplica su nombre/precio
+                list.querySelectorAll('.garment-card').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+
+                orderState.garmentName = p.name;
+                orderState.basePrice = Number(p.price);
+                orderState.price = Number(p.price);
+
+                if (typeof updateDynamicPricing === 'function') updateDynamicPricing();
+            });
+
+            list.appendChild(btn);
+        });
+
+        // Actualizar contador de "Todos (N)"
+        const allTab = document.querySelector('.cat-tab[data-filter="all"]');
+        if (allTab) allTab.textContent = `Todos (${indexCount})`;
+    } catch (err) {
+        console.warn('No se pudieron cargar productos 3D del admin:', err);
+    }
+}
+
+window.addEventListener('DOMContentLoaded', loadAdmin3DProducts);
