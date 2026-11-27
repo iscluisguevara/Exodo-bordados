@@ -1,6 +1,10 @@
 /**
  * ATELIER HILO — Home: Selector de Técnica (Bordado 3D vs Estampado HD) + Laboratorio Comparador IA
  * Sincroniza el estado con ../Models/models.html y ../login/login.html mediante localStorage.
+ * Optimizaciones:
+ * - Redimensionamiento automático de imágenes subidas (máx 512px) para evitar tirones de CPU/RAM.
+ * - Lienzo offscreen reutilizable (sharedHomeSourceCanvas) y exportación Base64 diferida en idle.
+ * - Prefetch inteligente de archivos 3D (.gltf / .bin) al pasar el cursor sobre tarjetas del catálogo.
  */
 
 const homeState = {
@@ -23,16 +27,56 @@ const homeState = {
     embroideryDataUrl: null
 };
 
+const PREFETCH_GLTF_MAP = {
+    'long-shirt': ['/assets/models/long-shirt.gltf', '/assets/models/long-shirt.bin'],
+    'tshirt': ['/assets/models/tshirt.gltf', '/assets/models/tshirt.bin'],
+    'polo': ['/assets/models/polo.gltf', '/assets/models/polo.bin'],
+    'cap': ['/assets/models/cap.gltf', '/assets/models/cap.bin']
+};
+const prefetchedUrls = new Set();
+
 let currentHomeImage = null;
+let sharedHomeSourceCanvas = null;
+let deferredSaveTimer = null;
 
 document.addEventListener('DOMContentLoaded', () => {
+    sharedHomeSourceCanvas = document.createElement('canvas');
+    sharedHomeSourceCanvas.width = 260;
+    sharedHomeSourceCanvas.height = 260;
+
     loadExistingOrderState();
     initHomeDefaultLogo();
     initHomeEvents();
     syncHomeCartBadge();
     handleResponsiveViewport();
-    window.addEventListener('resize', handleResponsiveViewport);
+    window.addEventListener('resize', handleResponsiveViewport, { passive: true });
 });
+
+function prefetchGarmentAssets(garmentType) {
+    const urls = PREFETCH_GLTF_MAP[garmentType];
+    if (!urls) return;
+    urls.forEach((url) => {
+        if (prefetchedUrls.has(url)) return;
+        prefetchedUrls.add(url);
+        fetch(url, { method: 'GET', credentials: 'same-origin' }).catch(() => {});
+    });
+}
+
+function downsampleHomeImage(imgElement, maxDim = 512) {
+    const w = imgElement.naturalWidth || imgElement.width || 260;
+    const h = imgElement.naturalHeight || imgElement.height || 260;
+    if (w <= maxDim && h <= maxDim) return imgElement;
+
+    const scale = Math.min(maxDim / w, maxDim / h);
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(w * scale));
+    c.height = Math.max(1, Math.round(h * scale));
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(imgElement, 0, 0, c.width, c.height);
+    return c;
+}
 
 function syncHomeCartBadge() {
     const cta = document.querySelector('.nav-cta');
@@ -47,9 +91,6 @@ function syncHomeCartBadge() {
     } catch (_) {}
 }
 
-/**
- * Adapta lienzos y, en caso de existir visor 3D activo en la vista, actualiza aspect ratio y distancia Z móvil
- */
 function handleResponsiveViewport() {
     const container = document.getElementById('canvas3d-wrapper');
     if (container && window.camera && window.renderer) {
@@ -80,8 +121,9 @@ function initHomeDefaultLogo() {
     if (homeState.rawLogoDataUrl) {
         const savedImg = new Image();
         savedImg.onload = () => {
-            currentHomeImage = savedImg;
-            runDualAIComparison(savedImg);
+            const optimized = downsampleHomeImage(savedImg, 512);
+            currentHomeImage = optimized;
+            runDualAIComparison(optimized);
         };
         savedImg.src = homeState.rawLogoDataUrl;
         return;
@@ -104,28 +146,24 @@ function initHomeDefaultLogo() {
     tCtx.textBaseline = 'middle';
     tCtx.fillText('AH', 130, 134);
 
-    const img = new Image();
-    img.onload = () => {
-        currentHomeImage = img;
-        runDualAIComparison(img);
-    };
-    img.src = temp.toDataURL();
+    currentHomeImage = temp;
+    runDualAIComparison(temp);
 }
 
 /**
  * Procesa la imagen simultáneamente en ambos motores (Bordado 3D y Estampado HD)
- * y diagnostica cuál técnica se adapta mejor según la complejidad cromática.
+ * reutilizando el canvas offscreen y difiriendo la serialización Base64.
  */
 function runDualAIComparison(imgElement) {
     const size = 260;
-    const srcCanvas = document.createElement('canvas');
-    srcCanvas.width = size;
-    srcCanvas.height = size;
-    const srcCtx = srcCanvas.getContext('2d');
+    const srcCtx = sharedHomeSourceCanvas.getContext('2d');
+    srcCtx.clearRect(0, 0, size, size);
 
-    const scale = Math.min((size - 28) / imgElement.width, (size - 28) / imgElement.height);
-    const drawW = imgElement.width * scale;
-    const drawH = imgElement.height * scale;
+    const imgW = imgElement.width || imgElement.naturalWidth || size;
+    const imgH = imgElement.height || imgElement.naturalHeight || size;
+    const scale = Math.min((size - 28) / imgW, (size - 28) / imgH);
+    const drawW = imgW * scale;
+    const drawH = imgH * scale;
     const offsetX = (size - drawW) / 2;
     const offsetY = (size - drawH) / 2;
 
@@ -157,6 +195,9 @@ function runDualAIComparison(imgElement) {
 
     const step = 3;
     let stitches = 0;
+    embCtx.lineWidth = step * 0.8;
+    embCtx.lineCap = 'round';
+
     for (let y = 0; y < size; y += step) {
         for (let x = 0; x < size; x += step) {
             const idx = (y * size + x) * 4;
@@ -169,8 +210,6 @@ function runDualAIComparison(imgElement) {
                 const b = Math.min(255, Math.max(0, data[idx + 2] + shine));
 
                 embCtx.strokeStyle = `rgb(${r},${g},${b})`;
-                embCtx.lineWidth = step * 0.8;
-                embCtx.lineCap = 'round';
                 const jitter = Math.sin(x * 0.5 + y * 0.3) * 0.8;
                 embCtx.beginPath();
                 embCtx.moveTo(x - step * 0.45, y - step * 0.35 + jitter);
@@ -187,9 +226,8 @@ function runDualAIComparison(imgElement) {
     const printCanvas = document.getElementById('home-print-canvas');
     const printCtx = printCanvas.getContext('2d');
     printCtx.clearRect(0, 0, size, size);
-    printCtx.drawImage(srcCanvas, 0, 0);
+    printCtx.drawImage(sharedHomeSourceCanvas, 0, 0);
 
-    // Simular micro-trama textil sobre la tinta para que se vea integrado a la tela
     const pDataObj = printCtx.getImageData(0, 0, size, size);
     const pData = pDataObj.data;
     for (let i = 0; i < pData.length; i += 4) {
@@ -214,8 +252,7 @@ function runDualAIComparison(imgElement) {
         explainEl.innerHTML = `<strong>Diagnóstico IA:</strong> Diseño de contornos definidos y colores sólidos. Luce extraordinario en <strong>Bordado 3D</strong> con relieve de hilo rayon o en <strong>Estampado Serigráfico</strong> de acabado mate.`;
     }
 
-    homeState.embroideryDataUrl = (homeState.technique === 'embroidery' ? embCanvas : printCanvas).toDataURL('image/png');
-    saveHomeState();
+    scheduleSaveHomeState();
 }
 
 function selectTechniqueOnHome(tech, persist = true) {
@@ -235,35 +272,43 @@ function selectTechniqueOnHome(tech, persist = true) {
         panel.classList.toggle('active', panel.dataset.selectTech === tech);
     });
 
+    if (persist) scheduleSaveHomeState();
+}
+
+function saveHomeStateNow() {
+    clearTimeout(deferredSaveTimer);
     const embCanvas = document.getElementById('home-embroidery-canvas');
     const printCanvas = document.getElementById('home-print-canvas');
     if (embCanvas && printCanvas) {
-        homeState.embroideryDataUrl = (tech === 'embroidery' ? embCanvas : printCanvas).toDataURL('image/png');
+        homeState.embroideryDataUrl = (homeState.technique === 'embroidery' ? embCanvas : printCanvas).toDataURL('image/png');
     }
-
-    if (persist) saveHomeState();
-}
-
-function saveHomeState() {
     localStorage.setItem('atelier_custom_order', JSON.stringify(homeState));
 }
 
+function scheduleSaveHomeState() {
+    clearTimeout(deferredSaveTimer);
+    deferredSaveTimer = setTimeout(() => {
+        if ('requestIdleCallback' in window) {
+            window.requestIdleCallback(() => saveHomeStateNow(), { timeout: 1000 });
+        } else {
+            saveHomeStateNow();
+        }
+    }, 250);
+}
+
 function initHomeEvents() {
-    // Selección en las tarjetas grandes de Técnica
     document.querySelectorAll('.technique-choice-card').forEach(card => {
         card.addEventListener('click', () => {
             selectTechniqueOnHome(card.dataset.technique);
         });
     });
 
-    // Selección haciendo clic en cualquiera de los 2 paneles de vista previa IA
     document.querySelectorAll('.comp-panel').forEach(panel => {
         panel.addEventListener('click', () => {
             selectTechniqueOnHome(panel.dataset.selectTech);
         });
     });
 
-    // Subida de logotipo en Home
     const uploadInput = document.getElementById('home-logo-upload');
     uploadInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
@@ -271,18 +316,20 @@ function initHomeEvents() {
 
         const reader = new FileReader();
         reader.onload = (ev) => {
-            homeState.rawLogoDataUrl = ev.target.result;
             const img = new Image();
             img.onload = () => {
-                currentHomeImage = img;
-                runDualAIComparison(img);
+                const optimized = downsampleHomeImage(img, 512);
+                currentHomeImage = optimized;
+                homeState.rawLogoDataUrl = optimized.toDataURL
+                    ? optimized.toDataURL('image/png')
+                    : ev.target.result;
+                runDualAIComparison(optimized);
             };
             img.src = ev.target.result;
         };
         reader.readAsDataURL(file);
     });
 
-    // Checkbox de recorte de fondo blanco
     document.getElementById('home-remove-bg').addEventListener('change', (e) => {
         homeState.removeWhiteBg = e.target.checked;
         if (currentHomeImage) {
@@ -290,7 +337,6 @@ function initHomeEvents() {
         }
     });
 
-    // Filtros por categoría en el catálogo
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -304,13 +350,18 @@ function initHomeEvents() {
         });
     });
 
-    // Tarjetas del catálogo -> prendas 3D van al estudio, imprenta/promocionales van a cotizar
     document.querySelectorAll('.catalog-item').forEach(item => {
+        if (item.dataset.garment) {
+            item.addEventListener('pointerenter', () => {
+                prefetchGarmentAssets(item.dataset.garment);
+            }, { passive: true });
+        }
+
         item.addEventListener('click', () => {
             if (item.dataset.garment) {
                 homeState.garmentType = item.dataset.garment;
-                saveHomeState();
-                window.location.href = '../Models/models.html';
+                saveHomeStateNow();
+                window.location.href = `../Models/models.html?garment=${encodeURIComponent(item.dataset.garment)}`;
             } else {
                 const quoteSection = document.getElementById('cotizacion');
                 const notesField = document.getElementById('quote-notes');
@@ -324,12 +375,17 @@ function initHomeEvents() {
         });
     });
 
-    // Botón principal ir al Estudio 3D
-    document.getElementById('go-to-3d-btn').addEventListener('click', () => {
-        saveHomeState();
-    });
+    const goTo3dBtn = document.getElementById('go-to-3d-btn');
+    if (goTo3dBtn) {
+        goTo3dBtn.addEventListener('pointerenter', () => {
+            prefetchGarmentAssets(homeState.garmentType || 'long-shirt');
+        }, { passive: true });
+        goTo3dBtn.addEventListener('click', () => {
+            saveHomeStateNow();
+        });
+    }
 
-    // Rastreo de pedidos por folio (GET /api/orders)
+    // Rastreo de pedidos por folio (GET /api/orders/:orderId)
     const trackingForm = document.getElementById('tracking-form');
     if (trackingForm) {
         trackingForm.addEventListener('submit', async (e) => {
@@ -344,10 +400,10 @@ function initHomeEvents() {
 
             let foundOrder = null;
             try {
-                const res = await fetch('/api/orders');
+                const res = await fetch(`/api/orders/${encodeURIComponent(folioInput)}`);
                 if (res.ok) {
-                    const orders = await res.json();
-                    foundOrder = orders.find(o => o.orderId && o.orderId.toUpperCase() === folioInput);
+                    const data = await res.json();
+                    foundOrder = data.order || null;
                 }
             } catch (_) {}
 
@@ -358,7 +414,7 @@ function initHomeEvents() {
                 'Cotización',
                 'Diseño aprobado',
                 'En producción',
-                'En bordado o impresión',
+                'Bordado/Impresión',
                 'Empaque',
                 'Enviado',
                 'Entregado'
@@ -366,11 +422,11 @@ function initHomeEvents() {
 
             let currentStage = 'En producción';
             if (foundOrder) {
-                const rawStatus = foundOrder.status || 'En producción';
-                currentStage = rawStatus === 'EN_COLA_DE_TALLER' ? 'En producción' : rawStatus;
-                metaInfo.textContent = `Cliente: ${foundOrder.user.name} • Producto: ${foundOrder.order.garmentName} (${foundOrder.order.techniqueName})`;
+                const rawStatus = foundOrder.production_stage || foundOrder.status || 'En producción';
+                currentStage = rawStatus === 'En bordado o impresión' ? 'Bordado/Impresión' : rawStatus;
+                metaInfo.textContent = `Cliente: ${foundOrder.customer_name || foundOrder.user?.name || 'Cliente'} • Producto: ${foundOrder.order?.garmentName || 'Personalizado'} (${foundOrder.order?.techniqueName || 'Bordado'})`;
             } else {
-                metaInfo.textContent = 'Mostrando estado estimado en taller. Verifica que el servidor esté encendido para consulta en vivo.';
+                metaInfo.textContent = 'Mostrando estado estimado en taller. Verifica tu folio para consulta en vivo.';
             }
 
             statusPill.textContent = currentStage;
@@ -418,7 +474,6 @@ function initHomeEvents() {
     }
 }
 
-// Cargar productos dinámicos agregados desde el Panel Admin en el catálogo principal
 async function loadAdminCatalogProducts() {
     try {
         const res = await fetch('/api/products');
@@ -469,8 +524,16 @@ async function loadAdminCatalogProducts() {
                 </div>
             `;
 
+            if (has3D) {
+                card.addEventListener('pointerenter', () => {
+                    prefetchGarmentAssets(p.model3d);
+                }, { passive: true });
+            }
+
             card.addEventListener('click', () => {
                 if (has3D) {
+                    homeState.garmentType = p.model3d;
+                    saveHomeStateNow();
                     window.location.href = `../Models/models.html?garment=${encodeURIComponent(p.model3d)}`;
                 } else {
                     const quoteSection = document.getElementById('cotizacion');

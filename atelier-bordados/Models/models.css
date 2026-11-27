@@ -281,6 +281,7 @@ html, body {
 }
 
 #canvas3d-wrapper {
+    position: relative;
     width: 100%;
     height: 100%;
     min-height: 580px;
@@ -288,6 +289,36 @@ html, body {
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
+}
+
+.viewport-loader {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.65rem 1.1rem;
+    background: rgba(22, 22, 22, 0.88);
+    color: var(--bg-bone);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 600;
+    pointer-events: none;
+    z-index: 15;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(6px);
+}
+
+.viewport-loader-spinner {
+    width: 15px;
+    height: 15px;
+    border: 2px solid rgba(246, 244, 239, 0.3);
+    border-top-color: #e6c699;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
 }
 
 #canvas3d-wrapper:active {
