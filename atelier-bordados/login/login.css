@@ -768,6 +768,84 @@ html, body {
     cursor: wait;
 }
 
+.mp-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.mp-badge {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    background: rgba(0, 158, 227, 0.12);
+    color: #007eb5;
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.btn-mercadopago {
+    width: 100%;
+    min-height: 46px;
+    padding: 0.85rem 1rem;
+    background: #009EE3;
+    color: #fff;
+    border: none;
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s ease, opacity 0.2s ease;
+}
+
+.btn-mercadopago:hover {
+    background: #007eb5;
+}
+
+.btn-mercadopago:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
+
+.confirmation-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.mp-status-pill {
+    padding: 0.22rem 0.6rem;
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    background: rgba(255, 255, 255, 0.12);
+    color: #e5c391;
+}
+
+.mp-status-pill.approved {
+    background: rgba(72, 187, 120, 0.22);
+    color: #9ae6b4;
+    border: 1px solid rgba(72, 187, 120, 0.5);
+}
+
+.mp-status-pill.pending {
+    background: rgba(236, 201, 75, 0.2);
+    color: #fefcbf;
+    border: 1px solid rgba(236, 201, 75, 0.45);
+}
+
+.mp-status-pill.rejected {
+    background: rgba(245, 101, 101, 0.22);
+    color: #feb2b2;
+    border: 1px solid rgba(245, 101, 101, 0.5);
+}
+
 /* Tarjeta Editorial de Folio Confirmado + Correo Simulado */
 .order-confirmation-card {
     padding: 1.4rem;

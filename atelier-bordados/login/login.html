@@ -230,12 +230,16 @@
                     </div>
                 </section>
 
-                <!-- BLOQUE 3: MÉTODO DE PAGO SIMULADO (RF-08) -->
+                <!-- BLOQUE 3: MÉTODO DE PAGO Y CHECKOUT MERCADO PAGO (RF-08) -->
                 <section id="payment-section" class="checkout-section hidden">
                     <p class="eyebrow">MÉTODO DE PAGO</p>
                     <div class="payment-methods-grid" role="radiogroup" aria-label="Método de pago">
-                        <button type="button" class="payment-option active" data-payment="card">
-                            <strong>Tarjeta</strong>
+                        <button type="button" class="payment-option active" data-payment="mercadopago">
+                            <strong>Mercado Pago</strong>
+                            <small>Tarjetas, SPEI, OXXO</small>
+                        </button>
+                        <button type="button" class="payment-option" data-payment="card">
+                            <strong>Tarjeta Directa</strong>
                             <small>Crédito / Débito</small>
                         </button>
                         <button type="button" class="payment-option" data-payment="transfer">
@@ -252,8 +256,22 @@
                         </button>
                     </div>
 
+                    <!-- Panel: Mercado Pago Checkout Pro -->
+                    <div id="pay-panel-mercadopago" class="payment-detail-panel">
+                        <div class="mp-panel-header">
+                            <span class="mp-badge">PASARELA OFICIAL • CHECKOUT PRO</span>
+                        </div>
+                        <p class="payment-info-title">Paga de forma segura con Mercado Pago</p>
+                        <p class="payment-sim-note">
+                            Tu pedido y cupón se validan en el servidor y se registran en Supabase con tu folio único <code>AH-2026-XXXX</code> antes de redirigirte al checkout de Mercado Pago. Al finalizar regresarás automáticamente a tu comprobante imprimible.
+                        </p>
+                        <button type="button" id="pay-mercadopago-btn" class="btn-mercadopago">
+                            Pagar con Mercado Pago →
+                        </button>
+                    </div>
+
                     <!-- Panel: Tarjeta (Simulado, no almacena datos sensibles) -->
-                    <div id="pay-panel-card" class="payment-detail-panel">
+                    <div id="pay-panel-card" class="payment-detail-panel hidden">
                         <p class="payment-sim-note">Simulación segura: los datos de tarjeta solo se validan en formato y nunca se almacenan.</p>
                         <div class="field-group">
                             <label for="card-holder">Nombre del titular</label>
@@ -314,7 +332,10 @@
 
                 <!-- BLOQUE 4: CONFIRMACIÓN + NOTIFICACIÓN DE CORREO + RECIBO IMPRIMIBLE (RF-12 y RF-16) -->
                 <div id="order-confirmation-card" class="order-confirmation-card hidden">
-                    <p class="eyebrow">CONFIRMACIÓN OFICIAL DE TALLER</p>
+                    <div class="confirmation-top-row">
+                        <p class="eyebrow">CONFIRMACIÓN OFICIAL DE TALLER</p>
+                        <span id="confirmed-payment-status-badge" class="mp-status-pill">PAGO REGISTRADO</span>
+                    </div>
                     <h3 class="folio-title">Folio: <span id="confirmed-order-folio">AH-2026-0000</span></h3>
                     <p id="confirmed-order-msg" class="folio-desc"></p>
 

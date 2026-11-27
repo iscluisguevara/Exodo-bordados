@@ -8,7 +8,8 @@ const STORAGE_KEYS = {
     CART: 'cartItems',
     LEGACY_ORDER: 'atelier_custom_order',
     SESSION: 'atelier_auth_session',
-    COUPON: 'atelier_active_coupon'
+    COUPON: 'atelier_active_coupon',
+    LAST_MP_ORDER: 'atelier_last_mp_order'
 };
 
 const LOCAL_FALLBACK_COUPONS = [
@@ -26,6 +27,7 @@ const ROLE_DESCRIPTIONS = {
 };
 
 const PAYMENT_LABELS = {
+    mercadopago: 'Mercado Pago Checkout Pro',
     card: 'Tarjeta de Crédito / Débito (Simulado)',
     transfer: 'Transferencia Bancaria SPEI',
     paypal: 'PayPal (Simulado)',
@@ -36,7 +38,7 @@ let cartItems = [];
 let authenticatedUser = null;
 let sessionToken = null;
 let appliedCoupon = null;
-let selectedPaymentMethod = 'card';
+let selectedPaymentMethod = 'mercadopago';
 let taxRate = 0.16;
 let lastConfirmedOrder = null;
 
@@ -48,6 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initCartAndCouponEvents();
     initPaymentAndCheckoutEvents();
     renderCart();
+    await handleMercadoPagoReturnIfPresent();
 });
 
 /**
@@ -697,15 +700,36 @@ function initPaymentAndCheckoutEvents() {
             btn.classList.add('active');
             selectedPaymentMethod = btn.dataset.payment;
 
-            ['card', 'transfer', 'paypal', 'branch'].forEach(method => {
-                document.getElementById(`pay-panel-${method}`).classList.toggle('hidden', method !== selectedPaymentMethod);
+            ['mercadopago', 'card', 'transfer', 'paypal', 'branch'].forEach(method => {
+                const panel = document.getElementById(`pay-panel-${method}`);
+                if (panel) panel.classList.toggle('hidden', method !== selectedPaymentMethod);
             });
+
+            const confirmBtn = document.getElementById('confirm-production-btn');
+            if (confirmBtn) {
+                confirmBtn.textContent = selectedPaymentMethod === 'mercadopago'
+                    ? 'Confirmar y Pagar con Mercado Pago →'
+                    : 'Confirmar y Registrar Pedido →';
+            }
             showCheckoutError('');
         });
     });
 
-    // Confirmar pedido y enviar a POST /api/orders
+    // Botón directo de Mercado Pago dentro de su panel
+    const mpPayBtn = document.getElementById('pay-mercadopago-btn');
+    if (mpPayBtn) {
+        mpPayBtn.addEventListener('click', () => {
+            selectedPaymentMethod = 'mercadopago';
+            document.getElementById('confirm-production-btn').click();
+        });
+    }
+
+    // Confirmar pedido y enviar a POST /api/payments/create-preference (Mercado Pago) o POST /api/orders
     const confirmBtn = document.getElementById('confirm-production-btn');
+    confirmBtn.textContent = selectedPaymentMethod === 'mercadopago'
+        ? 'Confirmar y Pagar con Mercado Pago →'
+        : 'Confirmar y Registrar Pedido →';
+
     confirmBtn.addEventListener('click', async () => {
         showCheckoutError('');
 
@@ -724,16 +748,6 @@ function initPaymentAndCheckoutEvents() {
             return;
         }
 
-        const paymentCheck = collectAndValidatePayment();
-        if (!paymentCheck.valid) {
-            showCheckoutError(paymentCheck.error);
-            return;
-        }
-
-        const originalBtnText = confirmBtn.textContent;
-        confirmBtn.disabled = true;
-        confirmBtn.textContent = 'Procesando orden...';
-
         // Persistir datos fiscales en el perfil del usuario si hay sesión con token
         if (billingCheck.billing && sessionToken) {
             try {
@@ -747,6 +761,74 @@ function initPaymentAndCheckoutEvents() {
                 });
             } catch (_) {}
         }
+
+        // Flujo 1: Pago con Mercado Pago (POST /api/payments/create-preference)
+        if (selectedPaymentMethod === 'mercadopago') {
+            const originalText = confirmBtn.textContent;
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = 'Generando preferencia en Mercado Pago...';
+            if (mpPayBtn) {
+                mpPayBtn.disabled = true;
+                mpPayBtn.textContent = 'Conectando con Mercado Pago...';
+            }
+
+            try {
+                const mpPayload = {
+                    user: authenticatedUser,
+                    items: cartItems,
+                    order: cartItems[0],
+                    billing: billingCheck.billing,
+                    couponCode: appliedCoupon ? appliedCoupon.code : null,
+                    createdAt: new Date().toISOString()
+                };
+
+                const response = await fetch(getApiUrl('/api/payments/create-preference'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {})
+                    },
+                    body: JSON.stringify(mpPayload)
+                });
+
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error || 'No se pudo iniciar el checkout con Mercado Pago.');
+                }
+
+                if (result.orderRecord) {
+                    localStorage.setItem(STORAGE_KEYS.LAST_MP_ORDER, JSON.stringify(result.orderRecord));
+                }
+
+                const checkoutUrl = result.init_point || result.sandbox_init_point;
+                if (checkoutUrl) {
+                    window.location.href = checkoutUrl;
+                    return;
+                }
+
+                throw new Error('Mercado Pago no devolvió una URL de pago válida.');
+            } catch (err) {
+                showCheckoutError(err.message || 'Error al conectar con Mercado Pago.');
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = originalText;
+                if (mpPayBtn) {
+                    mpPayBtn.disabled = false;
+                    mpPayBtn.textContent = 'Pagar con Mercado Pago →';
+                }
+                return;
+            }
+        }
+
+        // Flujo 2: Otros métodos de pago (Tarjeta directa simulada, SPEI, PayPal, Sucursal)
+        const paymentCheck = collectAndValidatePayment();
+        if (!paymentCheck.valid) {
+            showCheckoutError(paymentCheck.error);
+            return;
+        }
+
+        const originalBtnText = confirmBtn.textContent;
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Procesando orden...';
 
         const finalPayload = {
             user: authenticatedUser,
@@ -778,6 +860,7 @@ function initPaymentAndCheckoutEvents() {
             renderOrderConfirmation({
                 orderId: result.orderId,
                 message: result.message || 'Orden registrada en taller',
+                paymentStatus: lastConfirmedOrder?.payment_status || lastConfirmedOrder?.payment?.status || 'REGISTRADO',
                 embroideryImageUrl: result.embroideryImageUrl ? getApiUrl(result.embroideryImageUrl) : null,
                 emailNotification: result.emailNotification
             });
@@ -797,6 +880,7 @@ function initPaymentAndCheckoutEvents() {
             const fallbackFolio = `AH-2026-${Math.floor(1000 + Math.random() * 9000)}`;
             const fallbackRecord = {
                 orderId: fallbackFolio,
+                folio: fallbackFolio,
                 createdAt: new Date().toISOString(),
                 user: authenticatedUser,
                 billing: billingCheck.billing,
@@ -813,7 +897,8 @@ function initPaymentAndCheckoutEvents() {
             populatePrintableReceipt(fallbackRecord);
             renderOrderConfirmation({
                 orderId: fallbackFolio,
-                message: 'Orden confirmada en modo local (inicia el servidor en puerto 3000 para persistirla en data/orders.json)',
+                message: 'Orden confirmada en modo local',
+                paymentStatus: 'CONFIRMADO_MODO_LOCAL',
                 embroideryImageUrl: null,
                 emailNotification: {
                     to: authenticatedUser.email,
@@ -842,11 +927,123 @@ function initPaymentAndCheckoutEvents() {
     });
 }
 
-function renderOrderConfirmation({ orderId, message, embroideryImageUrl, emailNotification }) {
+/**
+ * Procesa el retorno desde las back_urls de Mercado Pago (?mp_status=approved|pending|rejected&folio=AH-2026-XXXX)
+ */
+async function handleMercadoPagoReturnIfPresent() {
+    const params = new URLSearchParams(window.location.search);
+    const folio = (params.get('folio') || params.get('external_reference') || '').trim();
+    const mpStatus = params.get('mp_status') || params.get('status') || params.get('collection_status');
+
+    if (!folio && !mpStatus) return;
+
+    const returnPayload = {
+        folio,
+        external_reference: params.get('external_reference'),
+        mp_status: params.get('mp_status'),
+        status: params.get('status'),
+        collection_status: params.get('collection_status'),
+        payment_id: params.get('payment_id'),
+        collection_id: params.get('collection_id'),
+        preference_id: params.get('preference_id'),
+        payment_type: params.get('payment_type')
+    };
+
+    try {
+        const res = await fetch(getApiUrl('/api/payments/confirm-return'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(returnPayload)
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success && data.orderRecord) {
+            const orderRecord = data.orderRecord;
+            lastConfirmedOrder = orderRecord;
+
+            // Asegurar que la vista muestre los datos del cliente si volvió de una redirección externa
+            if (!authenticatedUser && orderRecord.user) {
+                applyAuthenticatedSession(orderRecord.user, true, false);
+            }
+
+            populatePrintableReceipt(orderRecord);
+
+            const statusMessages = {
+                approved: 'Pago aprobado en Mercado Pago y orden confirmada en taller',
+                pending: 'Orden registrada en Supabase con pago pendiente de acreditación en Mercado Pago',
+                rejected: 'El pago en Mercado Pago fue rechazado o cancelado. Tu folio quedó registrado como pendiente'
+            };
+
+            const firstImg = orderRecord.items && orderRecord.items[0] ? orderRecord.items[0].embroideryImageUrl : null;
+            renderOrderConfirmation({
+                orderId: orderRecord.folio || orderRecord.orderId,
+                message: statusMessages[data.paymentStatus] || 'Orden procesada con Mercado Pago',
+                paymentStatus: data.paymentStatus || orderRecord.payment_status,
+                embroideryImageUrl: firstImg && !firstImg.startsWith('data:') ? getApiUrl(firstImg) : null,
+                emailNotification: data.emailNotification
+            });
+
+            if (data.paymentStatus === 'approved' || data.paymentStatus === 'pending') {
+                cartItems = [];
+                appliedCoupon = null;
+                localStorage.removeItem(STORAGE_KEYS.CART);
+                localStorage.removeItem(STORAGE_KEYS.LEGACY_ORDER);
+                localStorage.removeItem(STORAGE_KEYS.COUPON);
+                renderCart();
+            }
+        }
+    } catch (err) {
+        console.warn('No se pudo confirmar el retorno de Mercado Pago con el servidor, usando respaldo local:', err);
+        try {
+            const cachedRaw = localStorage.getItem(STORAGE_KEYS.LAST_MP_ORDER);
+            if (cachedRaw) {
+                const cachedOrder = JSON.parse(cachedRaw);
+                lastConfirmedOrder = cachedOrder;
+                populatePrintableReceipt(cachedOrder);
+                renderOrderConfirmation({
+                    orderId: cachedOrder.folio || cachedOrder.orderId || folio,
+                    message: 'Retorno de Mercado Pago recibido',
+                    paymentStatus: mpStatus || 'pending',
+                    embroideryImageUrl: null,
+                    emailNotification: {
+                        to: cachedOrder.user?.email || '',
+                        subject: `Comprobante de Pedido ${cachedOrder.folio || folio}`,
+                        sentAt: new Date().toISOString()
+                    }
+                });
+            }
+        } catch (_) {}
+    } finally {
+        // Limpiar query params de la barra de direcciones sin recargar la página
+        if (window.history && window.history.replaceState) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }
+}
+
+function renderOrderConfirmation({ orderId, message, paymentStatus, embroideryImageUrl, emailNotification }) {
     const card = document.getElementById('order-confirmation-card');
+    const customerName = authenticatedUser?.name || lastConfirmedOrder?.user?.name || 'Cliente';
+    const customerEmail = authenticatedUser?.email || lastConfirmedOrder?.user?.email || '';
+
     document.getElementById('confirmed-order-folio').textContent = orderId;
     document.getElementById('confirmed-order-msg').textContent =
-        `${message} para ${authenticatedUser.name} (${authenticatedUser.email}).`;
+        `${message} para ${customerName}${customerEmail ? ` (${customerEmail})` : ''}.`;
+
+    const statusBadge = document.getElementById('confirmed-payment-status-badge');
+    if (statusBadge) {
+        const rawSt = String(paymentStatus || 'pending').toLowerCase();
+        if (rawSt === 'approved' || rawSt.includes('pagado')) {
+            statusBadge.textContent = '✓ PAGO APROBADO';
+            statusBadge.className = 'mp-status-pill approved';
+        } else if (rawSt === 'rejected') {
+            statusBadge.textContent = '✕ PAGO RECHAZADO';
+            statusBadge.className = 'mp-status-pill rejected';
+        } else {
+            statusBadge.textContent = '⏳ PAGO PENDIENTE';
+            statusBadge.className = 'mp-status-pill pending';
+        }
+    }
 
     const noticeDetail = document.getElementById('email-notice-detail');
     if (emailNotification) {

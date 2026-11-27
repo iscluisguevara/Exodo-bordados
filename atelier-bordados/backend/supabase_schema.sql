@@ -70,6 +70,45 @@ CREATE INDEX IF NOT EXISTS idx_orders_folio ON public.orders (folio);
 CREATE INDEX IF NOT EXISTS idx_orders_stage ON public.orders (production_stage);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON public.orders (created_at DESC);
 
+-- 2B. TABLA DE CUPONES DE DESCUENTO (Validación en servidor y Checkout)
+CREATE TABLE IF NOT EXISTS public.coupons (
+    code VARCHAR(50) PRIMARY KEY,
+    discount_type VARCHAR(20) NOT NULL DEFAULT 'percentage'
+        CHECK (discount_type IN ('percentage', 'fixed')),
+    discount_value NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    min_subtotal NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    expires_at TIMESTAMPTZ DEFAULT '2027-12-31T23:59:59.000Z',
+    description TEXT DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_coupons_active ON public.coupons (active);
+
+-- Seed de cupones iniciales en Supabase
+INSERT INTO public.coupons (
+    code,
+    discount_type,
+    discount_value,
+    min_subtotal,
+    active,
+    expires_at,
+    description
+) VALUES
+    ('EXODO10', 'percentage', 10, 0, TRUE, '2027-12-31T23:59:59.000Z', '10% de descuento en tu pedido personalizado'),
+    ('ATELIER150', 'fixed', 150, 600, TRUE, '2027-12-31T23:59:59.000Z', '$150 MXN de descuento en compras desde $600 MXN'),
+    ('MAYOREO20', 'percentage', 20, 2000, TRUE, '2027-12-31T23:59:59.000Z', '20% de descuento en pedidos de mayoreo desde $2,000 MXN'),
+    ('EXPIRADO50', 'percentage', 50, 0, TRUE, '2025-01-01T00:00:00.000Z', 'Cupón de prueba vencido')
+ON CONFLICT (code) DO UPDATE SET
+    discount_type = EXCLUDED.discount_type,
+    discount_value = EXCLUDED.discount_value,
+    min_subtotal = EXCLUDED.min_subtotal,
+    active = EXCLUDED.active,
+    expires_at = EXCLUDED.expires_at,
+    description = EXCLUDED.description,
+    updated_at = NOW();
+
 -- 3. SEED DE CUENTA EXCLUSIVA DE ADMINISTRADOR
 -- Nota de seguridad: La contraseña se almacena exclusivamente como hash criptográfico (scrypt 64-byte)
 -- con google_id = NULL, auth_provider = 'local' y google_oauth_disabled = TRUE.

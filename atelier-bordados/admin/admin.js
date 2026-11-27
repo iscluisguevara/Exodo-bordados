@@ -445,14 +445,16 @@ function getFilteredOrders() {
 
 function formatPaymentBadge(order) {
     const methodMap = {
+        mercadopago: 'Mercado Pago',
         card: 'Tarjeta',
         transfer: 'SPEI',
         paypal: 'PayPal',
         branch: 'Sucursal'
     };
     const method = order.payment_method || order.payment?.method || 'branch';
-    const status = order.payment_status || order.payment?.status || 'PENDIENTE';
-    const isPaid = status.includes('PAGADO');
+    const status = String(order.payment_status || order.payment?.status || 'pending');
+    const upperStatus = status.toUpperCase();
+    const isPaid = upperStatus === 'APPROVED' || upperStatus.includes('PAGADO');
     const badgeClass = isPaid ? 'badge-ok' : 'badge-warn';
 
     return `

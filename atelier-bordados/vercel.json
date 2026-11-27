@@ -1,0 +1,47 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "backend/server.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "home/**",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "login/**",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "Models/**",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "admin/**",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "footer/**",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "assets/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "^/api/(.*)$",
+      "dest": "backend/server.js"
+    },
+    {
+      "src": "^/$",
+      "dest": "/home/index.html"
+    },
+    {
+      "src": "^/(home|login|Models|admin|footer|assets)/(.*)$",
+      "dest": "/$1/$2"
+    }
+  ]
+}
