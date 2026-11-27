@@ -1,27 +1,184 @@
 [
   {
+    "id": 1,
+    "folio": "AH-2026-5250",
     "orderId": "AH-2026-5250",
     "createdAt": "2026-11-23T23:58:30.074Z",
+    "created_at": "2026-11-23T23:58:30.074Z",
+    "production_stage": "Empaque",
     "status": "Empaque",
+    "customer_name": "Valeria Montes de Oca",
+    "customer_email": "valeria.montes@corporativomx.com",
     "user": {
-      "name": "Cliente Verificado (Google OAuth)",
-      "email": "cliente.verificado@gmail.com"
+      "name": "Valeria Montes de Oca",
+      "email": "valeria.montes@corporativomx.com",
+      "role": "Cliente"
     },
-    "order": {
-      "garmentType": "long-shirt",
-      "garmentName": "Camisa Manga Larga Oxford",
-      "technique": "embroidery",
-      "techniqueName": "Bordado 3D de Alta Precisión",
-      "price": 890,
-      "fabricColor": "#5c242b",
-      "fabricColorName": "Vino Burdeos",
-      "logoX": 0.22,
-      "logoY": 0.2,
-      "logoScale": 0.26,
-      "stitchDensity": 3,
-      "stitchCount": 5907,
-      "printAreaCm2": 85,
-      "embroideryImageUrl": "/api/uploads/AH-2026-5250.png"
+    "billing": {
+      "razonSocial": "Corporativo Textil Montes S.A. de C.V.",
+      "rfc": "CTM210415AB9",
+      "billingEmail": "facturacion@corporativomx.com",
+      "fiscalAddress": "Av. Paseo de la Reforma 412, Piso 8, Cuauhtémoc, CDMX",
+      "postalCode": "06600"
+    },
+    "items": [
+      {
+        "itemIndex": 1,
+        "garmentType": "long-shirt",
+        "garmentName": "Camisa Manga Larga Oxford",
+        "technique": "embroidery",
+        "techniqueName": "Bordado 3D de Alta Precisión",
+        "unitPrice": 890,
+        "price": 890,
+        "quantity": 2,
+        "lineTotal": 1780,
+        "fabricColor": "#5c242b",
+        "fabricColorName": "Vino Burdeos",
+        "logoX": 0.22,
+        "logoY": 0.2,
+        "logoScale": 0.26,
+        "stitchDensity": 3,
+        "stitchCount": 5907,
+        "printAreaCm2": 85,
+        "embroideryImageUrl": "/api/uploads/AH-2026-5250.png"
+      }
+    ],
+    "subtotal": 1780,
+    "discount": 178,
+    "tax": 256.32,
+    "total": 1858.32,
+    "coupon_code": "EXODO10",
+    "payment_method": "card",
+    "payment_status": "PAGADO_SIMULADO",
+    "payment": {
+      "method": "card",
+      "methodLabel": "Tarjeta de Crédito / Débito",
+      "status": "PAGADO_SIMULADO",
+      "reference": "REF-AH-2026-5250",
+      "cardLast4": "4821",
+      "cardHolder": "VALERIA MONTES"
+    }
+  },
+  {
+    "id": 2,
+    "folio": "AH-2026-7814",
+    "orderId": "AH-2026-7814",
+    "createdAt": "2026-11-25T16:20:00.000Z",
+    "created_at": "2026-11-25T16:20:00.000Z",
+    "production_stage": "Bordado/Impresión",
+    "status": "Bordado/Impresión",
+    "customer_name": "Sebastián Cárdenas",
+    "customer_email": "scardenas@studionorte.mx",
+    "user": {
+      "name": "Sebastián Cárdenas",
+      "email": "scardenas@studionorte.mx",
+      "role": "Cliente"
+    },
+    "billing": {
+      "razonSocial": "Studio Norte Diseño S.C.",
+      "rfc": "SND190822KL4",
+      "billingEmail": "contabilidad@studionorte.mx",
+      "fiscalAddress": "Calz. del Valle 350, San Pedro Garza García, N.L.",
+      "postalCode": "66220"
+    },
+    "items": [
+      {
+        "itemIndex": 1,
+        "garmentType": "hoodie",
+        "garmentName": "Hoodie Boxy 450 GSM",
+        "technique": "embroidery",
+        "techniqueName": "Bordado 3D de Alta Precisión",
+        "unitPrice": 1150,
+        "price": 1150,
+        "quantity": 4,
+        "lineTotal": 4600,
+        "fabricColor": "#1b2432",
+        "fabricColorName": "Azul Medianoche",
+        "stitchDensity": 4,
+        "stitchCount": 7420,
+        "printAreaCm2": 110,
+        "embroideryImageUrl": null
+      },
+      {
+        "itemIndex": 2,
+        "garmentType": "cap",
+        "garmentName": "Gorra Estructurada 6 Paneles",
+        "technique": "embroidery",
+        "techniqueName": "Bordado Frontal Alto Relieve",
+        "unitPrice": 450,
+        "price": 450,
+        "quantity": 4,
+        "lineTotal": 1800,
+        "fabricColor": "#181818",
+        "fabricColorName": "Negro Ónix",
+        "stitchDensity": 3,
+        "stitchCount": 4100,
+        "printAreaCm2": 48,
+        "embroideryImageUrl": null
+      }
+    ],
+    "subtotal": 6400,
+    "discount": 1280,
+    "tax": 819.2,
+    "total": 5939.2,
+    "coupon_code": "MAYOREO20",
+    "payment_method": "transfer",
+    "payment_status": "PENDIENTE_COMPROBANTE_SPEI",
+    "payment": {
+      "method": "transfer",
+      "methodLabel": "Transferencia SPEI",
+      "status": "PENDIENTE_COMPROBANTE_SPEI",
+      "reference": "SPEI-7814-EXODO"
+    }
+  },
+  {
+    "id": 3,
+    "folio": "AH-2026-9042",
+    "orderId": "AH-2026-9042",
+    "createdAt": "2026-11-26T14:10:00.000Z",
+    "created_at": "2026-11-26T14:10:00.000Z",
+    "production_stage": "Cotización",
+    "status": "Cotización",
+    "customer_name": "Mariana Villarreal",
+    "customer_email": "mariana.v@boutiqueaura.com",
+    "user": {
+      "name": "Mariana Villarreal",
+      "email": "mariana.v@boutiqueaura.com",
+      "role": "Cliente"
+    },
+    "billing": null,
+    "items": [
+      {
+        "itemIndex": 1,
+        "garmentType": "polo",
+        "garmentName": "Playera Tipo Polo Piqué",
+        "technique": "embroidery",
+        "techniqueName": "Bordado Institucional Pecho",
+        "unitPrice": 650,
+        "price": 650,
+        "quantity": 3,
+        "lineTotal": 1950,
+        "fabricColor": "#f4f1ea",
+        "fabricColorName": "Marfil Crudo",
+        "stitchDensity": 3,
+        "stitchCount": 3850,
+        "printAreaCm2": 64,
+        "embroideryImageUrl": null
+      }
+    ],
+    "subtotal": 1950,
+    "discount": 150,
+    "tax": 288,
+    "total": 2088,
+    "coupon_code": "ATELIER150",
+    "payment_method": "paypal",
+    "payment_status": "PAGADO_SIMULADO",
+    "payment": {
+      "method": "paypal",
+      "methodLabel": "PayPal Express",
+      "status": "PAGADO_SIMULADO",
+      "reference": "PP-9042-EXODO",
+      "paypalEmail": "mariana.v@boutiqueaura.com"
     }
   }
 ]

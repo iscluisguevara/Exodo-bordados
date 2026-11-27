@@ -10,15 +10,76 @@
     <link rel="stylesheet" href="admin.css">
 </head>
 <body>
+    <!-- BARRA SUPERIOR -->
     <header class="admin-navbar">
         <div class="brand">EXODO <span>/ PANEL GERENCIAL</span></div>
-        <nav>
-            <a href="../home/index.html">← Volver a Tienda</a>
-            <a href="../Models/models.html">Estudio 3D</a>
-        </nav>
+        <div class="navbar-right">
+            <div id="admin-user-bar" class="admin-user-bar is-hidden" hidden>
+                <span id="admin-db-badge" class="db-badge" title="Origen de datos">Supabase</span>
+                <span id="admin-user-email" class="admin-email-pill"></span>
+                <button type="button" id="btn-admin-logout" class="btn-logout">Cerrar Sesión</button>
+            </div>
+            <nav class="navbar-links">
+                <a href="../home/index.html">← Volver a Tienda</a>
+                <a href="../Models/models.html">Estudio 3D</a>
+            </nav>
+        </div>
     </header>
 
-    <main class="admin-container">
+    <!-- VISTA 1: ACCESO EXCLUSIVO DE ADMINISTRADOR (BLOQUEA EL PANEL SI NO HAY SESIÓN) -->
+    <section id="admin-login-view" class="login-gate-wrapper">
+        <div class="login-card">
+            <div class="login-card-header">
+                <span class="login-eyebrow">ACCESO RESTRINGIDO</span>
+                <h1>Consola Administrativa</h1>
+                <p>Inicia sesión con tus credenciales exclusivas de Administrador para gestionar pedidos y etapas de producción.</p>
+            </div>
+
+            <div id="admin-login-error" class="login-alert is-hidden" role="alert" hidden></div>
+
+            <form id="admin-login-form" autocomplete="off" novalidate>
+                <div class="form-field">
+                    <label for="admin-email">Correo Administrativo</label>
+                    <input
+                        type="email"
+                        id="admin-email"
+                        name="email"
+                        placeholder="Ingresa tu correo de administrador"
+                        required
+                        autocomplete="username"
+                    >
+                </div>
+
+                <div class="form-field">
+                    <label for="admin-password">Contraseña</label>
+                    <div class="password-input-wrap">
+                        <input
+                            type="password"
+                            id="admin-password"
+                            name="password"
+                            placeholder="••••••••••"
+                            required
+                            autocomplete="current-password"
+                        >
+                        <button type="button" id="btn-toggle-password" class="btn-eye" aria-label="Mostrar u ocultar contraseña">
+                            Ver
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" id="btn-admin-submit" class="btn-login-submit">
+                    Ingresar al Panel
+                </button>
+            </form>
+
+            <div class="login-security-note">
+                <span>🔒 Autenticación directa protegida por rol. El acceso administrativo está aislado de proveedores externos (Google OAuth deshabilitado).</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- VISTA 2: PANEL GERENCIAL Y GESTIÓN DE PEDIDOS (OCULTO HASTA AUTENTICAR) -->
+    <main id="admin-dashboard-view" class="admin-container is-hidden" hidden>
         <!-- DASHBOARD KPI (RF-18) -->
         <section class="kpi-grid">
             <div class="kpi-card">
@@ -26,19 +87,19 @@
                 <strong id="kpi-sales">$0 MXN</strong>
             </div>
             <div class="kpi-card">
-                <span class="kpi-label">PEDIDOS DEL MES</span>
+                <span class="kpi-label">PEDIDOS REGISTRADOS</span>
                 <strong id="kpi-orders">0</strong>
             </div>
             <div class="kpi-card">
-                <span class="kpi-label">EN PRODUCCIÓN</span>
+                <span class="kpi-label">EN TALLER / ACTIVOS</span>
                 <strong id="kpi-production">0</strong>
             </div>
             <div class="kpi-card">
-                <span class="kpi-label">COTIZACIONES PENDIENTES</span>
-                <strong id="kpi-quotes">0</strong>
+                <span class="kpi-label">ENTREGADOS</span>
+                <strong id="kpi-delivered">0</strong>
             </div>
             <div class="kpi-card">
-                <span class="kpi-label">CLIENTES REGISTRADOS</span>
+                <span class="kpi-label">CLIENTES ÚNICOS</span>
                 <strong id="kpi-clients">0</strong>
             </div>
             <div class="kpi-card">
@@ -58,17 +119,46 @@
 
         <!-- TAB 1: PEDIDOS Y SEGUIMIENTO DE PRODUCCIÓN -->
         <section class="tab-panel active" id="tab-orders">
-            <h2>Control de Pedidos y Etapas de Taller</h2>
+            <div class="panel-header-row">
+                <div>
+                    <h2>Control de Pedidos y Etapas de Taller</h2>
+                    <p class="panel-subtitle">Consulta el detalle completo de cada orden y actualiza su etapa de producción en tiempo real.</p>
+                </div>
+                <div class="orders-toolbar">
+                    <input
+                        type="search"
+                        id="order-search-input"
+                        class="toolbar-input"
+                        placeholder="Buscar por folio, cliente, correo o RFC..."
+                    >
+                    <select id="order-stage-filter" class="toolbar-select">
+                        <option value="ALL">Todas las etapas</option>
+                        <option value="Cotización">Cotización</option>
+                        <option value="Diseño aprobado">Diseño aprobado</option>
+                        <option value="En producción">En producción</option>
+                        <option value="Bordado/Impresión">Bordado/Impresión</option>
+                        <option value="Empaque">Empaque</option>
+                        <option value="Enviado">Enviado</option>
+                        <option value="Entregado">Entregado</option>
+                    </select>
+                    <button type="button" id="btn-refresh-orders" class="btn-dark">↻ Actualizar</button>
+                </div>
+            </div>
+
+            <!-- RESUMEN RÁPIDO POR ETAPA -->
+            <div id="stage-summary-bar" class="stage-summary-bar"></div>
+
             <div class="table-wrap">
                 <table>
                     <thead>
                         <tr>
-                            <th>Folio</th>
-                            <th>Cliente</th>
-                            <th>Producto / Técnica</th>
-                            <th>Diseño</th>
+                            <th>Folio / Fecha</th>
+                            <th>Cliente / Facturación</th>
+                            <th>Artículos / Técnica</th>
+                            <th>Pago</th>
                             <th>Total</th>
                             <th>Etapa de Producción</th>
+                            <th>Detalle</th>
                         </tr>
                     </thead>
                     <tbody id="orders-tbody"></tbody>
@@ -185,6 +275,23 @@
             </div>
         </section>
     </main>
+
+    <!-- MODAL DE DETALLE COMPLETO DEL PEDIDO -->
+    <div id="order-detail-modal" class="modal-backdrop is-hidden" hidden>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-order-title">
+            <div class="modal-header">
+                <div>
+                    <span class="modal-eyebrow">EXPEDIENTE DE ORDEN</span>
+                    <h3 id="modal-order-title">Pedido —</h3>
+                </div>
+                <button type="button" id="btn-close-modal" class="btn-modal-close" aria-label="Cerrar detalle">✕</button>
+            </div>
+            <div id="modal-order-body" class="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- NOTIFICACIÓN TOAST -->
+    <div id="admin-toast" class="admin-toast is-hidden" hidden></div>
 
     <script src="admin.js"></script>
 </body>
