@@ -283,26 +283,31 @@
       "uri": "long-shirt.bin"
     }
   ],
-  "extensionsRequired": [
-    "KHR_materials_pbrSpecularGlossiness"
-  ],
   "extensionsUsed": [
     "KHR_materials_pbrSpecularGlossiness"
   ],
   "images": [
     {
-      "uri": "textures/Lining_diffuse.png"
+      "uri": "textures long shirt/Lining_diffuse.png"
     },
     {
-      "uri": "textures/Shirt_specularGlossiness.png"
+      "uri": "textures long shirt/Shirt_specularGlossiness.png"
     },
     {
-      "uri": "textures/Shirt_normal.png"
+      "uri": "textures long shirt/Shirt_normal.png"
     }
   ],
   "materials": [
     {
       "doubleSided": true,
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicFactor": 0.05,
+        "roughnessFactor": 0.82
+      },
       "extensions": {
         "KHR_materials_pbrSpecularGlossiness": {
           "diffuseFactor": [
@@ -326,6 +331,14 @@
     },
     {
       "doubleSided": true,
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicFactor": 0.05,
+        "roughnessFactor": 0.82
+      },
       "extensions": {
         "KHR_materials_pbrSpecularGlossiness": {
           "diffuseFactor": [

@@ -657,13 +657,13 @@
   ],
   "images": [
     {
-      "uri": "textures/material_normal.png"
+      "uri": "textures cap/material_normal.png"
     },
     {
-      "uri": "textures/Baseball_Cap_baseColor.png"
+      "uri": "textures cap/Baseball_Cap_baseColor.png"
     },
     {
-      "uri": "textures/Baseball_Cap_metallicRoughness.png"
+      "uri": "textures cap/Baseball_Cap_metallicRoughness.png"
     }
   ],
   "materials": [

@@ -28,10 +28,10 @@ const homeState = {
 };
 
 const PREFETCH_GLTF_MAP = {
-    'long-shirt': ['/assets/models/long-shirt.gltf', '/assets/models/long-shirt.bin'],
-    'tshirt': ['/assets/models/tshirt.gltf', '/assets/models/tshirt.bin'],
-    'polo': ['/assets/models/polo.gltf', '/assets/models/polo.bin'],
-    'cap': ['/assets/models/cap.gltf', '/assets/models/cap.bin']
+    'long-shirt': ['../assets/models/long-shirt.gltf', '../assets/models/long-shirt.bin'],
+    'tshirt': ['../assets/models/tshirt.gltf', '../assets/models/tshirt.bin'],
+    'polo': ['../assets/models/polo.gltf', '../assets/models/polo.bin'],
+    'cap': ['../assets/models/cap.gltf', '../assets/models/cap.bin']
 };
 const prefetchedUrls = new Set();
 

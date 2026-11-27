@@ -122,13 +122,13 @@
   ],
   "images": [
     {
-      "uri": "textures/Polo_LV2_lambert1_baseColor.jpeg"
+      "uri": "textures polo/Polo_LV2_lambert1_baseColor.jpeg"
     },
     {
-      "uri": "textures/Polo_LV2_lambert1_metallicRoughness.png"
+      "uri": "textures polo/Polo_LV2_lambert1_metallicRoughness.png"
     },
     {
-      "uri": "textures/Polo_LV2_lambert1_normal.png"
+      "uri": "textures polo/Polo_LV2_lambert1_normal.png"
     }
   ],
   "materials": [

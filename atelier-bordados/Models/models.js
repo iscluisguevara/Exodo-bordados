@@ -90,31 +90,31 @@ const GARMENT_CATALOG = {
     }
 };
 
-// Configuración de normalización y horneado para modelos GLTF externos
+// Configuración de normalización y horneado para modelos GLTF externos (rutas relativas compatibles con Live Server, Express y Vercel)
 const GLTF_GARMENT_CONFIG = {
     'long-shirt': {
-        url: '/assets/models/long-shirt.gltf',
+        url: '../assets/models/long-shirt.gltf',
         rotateX: Math.PI / 2,
         fitMode: 'maxDim',
         targetSize: 1.8,
         yOffset: 0.1
     },
     'tshirt': {
-        url: '/assets/models/tshirt.gltf',
+        url: '../assets/models/tshirt.gltf',
         rotateX: 0,
         fitMode: 'sizeY',
         targetSize: 1.8,
         yOffset: 0.1
     },
     'polo': {
-        url: '/assets/models/polo.gltf',
+        url: '../assets/models/polo.gltf',
         rotateX: 0,
         fitMode: 'maxDim',
         targetSize: 1.8,
         yOffset: 0.1
     },
     'cap': {
-        url: '/assets/models/cap.gltf',
+        url: '../assets/models/cap.gltf',
         rotateX: 0,
         fitMode: 'sizeY',
         targetSize: 0.75,
@@ -128,7 +128,8 @@ const orderState = {
     basePrice: 890,
     price: 890,
     fabricColor: '#1c1c1e',
-    fabricColorName: 'Negro Ónix',
+    fabricColorName: 'Textura Original 3D',
+    useOriginalTextureColor: true,
     technique: 'embroidery',
     techniqueName: 'Bordado 3D de Alta Precisión',
     logoX: 0.18,
@@ -142,15 +143,27 @@ const orderState = {
     rawLogoDataUrl: null
 };
 
-// Interceptor de texturas externas faltantes en los GLTF (evita 404 y descargas innecesarias)
-const dummy1px = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+// Resolutor de rutas de texturas para cargar siempre los archivos reales en assets/models/textures*
+const TEXTURE_FOLDER_REMAP = [
+    { match: /textures\/(Lining_diffuse\.png|Shirt_specularGlossiness\.png|Shirt_normal\.png)$/i, folder: 'textures long shirt' },
+    { match: /textures\/(Polo_LV2_lambert1_baseColor\.jpeg|Polo_LV2_lambert1_metallicRoughness\.png|Polo_LV2_lambert1_normal\.png)$/i, folder: 'textures polo' },
+    { match: /textures\/(material_normal\.png|Baseball_Cap_baseColor\.png|Baseball_Cap_metallicRoughness\.png)$/i, folder: 'textures cap' }
+];
 
 const globalModelManager = new THREE.LoadingManager();
 globalModelManager.setURLModifier((url) => {
-    if (/\.(png|jpe?g|webp)$/i.test(url)) {
-        return dummy1px;
+    let resolved = url;
+    // Si alguna ruta venía con /assets/models/ absoluta, convertirla a relativa ../assets/models/ para Live Server
+    if (resolved.startsWith('/assets/models/')) {
+        resolved = '..' + resolved;
     }
-    return url;
+    for (const rule of TEXTURE_FOLDER_REMAP) {
+        if (rule.match.test(resolved)) {
+            resolved = resolved.replace(/textures\//i, `${rule.folder}/`);
+            break;
+        }
+    }
+    return encodeURI(decodeURI(resolved));
 });
 
 const gltfLoader = new THREE.GLTFLoader(globalModelManager);
@@ -239,8 +252,9 @@ function restoreSavedStateIfAny() {
                 ? 'Bordado 3D de Alta Precisión'
                 : 'Estampado Serigráfico / DTF HD';
         }
-        if (saved.fabricColor) orderState.fabricColor = saved.fabricColor;
-        if (saved.fabricColorName) orderState.fabricColorName = saved.fabricColorName;
+        // Siempre iniciar mostrando la textura original del modelo 3D de assets/models/textures*
+        orderState.useOriginalTextureColor = true;
+        orderState.fabricColorName = 'Textura Original 3D';
         if (saved.rawLogoDataUrl) orderState.rawLogoDataUrl = saved.rawLogoDataUrl;
     } catch (e) {
         console.warn('No se pudo restaurar estado previo:', e);
@@ -708,7 +722,7 @@ function sampleDepthFromGrid(grid, wx, wy) {
 
 /**
  * Hornea un modelo GLTF en un grupo estático plano (eliminando los ~390 huesos de SkinnedMesh)
- * y reutilizando fabricMaterial para cambios de color y wireframe instantáneos.
+ * y CONSERVA sus materiales y texturas originales de assets/models/textures*.
  */
 function normalizeAndBakeGltfScene(gltfScene, type) {
     const cfg = GLTF_GARMENT_CONFIG[type];
@@ -738,6 +752,27 @@ function normalizeAndBakeGltfScene(gltfScene, type) {
     const bakedGroup = new THREE.Group();
     bakedGroup.name = `garment_${type}`;
 
+    const spec = GARMENT_CATALOG[type] || GARMENT_CATALOG['long-shirt'];
+    const fallbackWeaveBump = getWeaveBumpTexture(spec.weave);
+
+    const prepareGltfMaterial = (mat) => {
+        if (!mat) return fabricMaterial;
+        mat.side = THREE.DoubleSide;
+        mat.wireframe = isWireframe;
+        if (!mat.userData) mat.userData = {};
+        if (!mat.userData.originalColor && mat.color) {
+            mat.userData.originalColor = mat.color.clone();
+        }
+        mat.userData.hasOriginalTexture = Boolean(mat.map || mat.normalMap || mat.roughnessMap || mat.metalnessMap);
+        // Si el modelo GLTF no trae texturas de imagen (ej. tshirt.gltf), aplicarle bump de trama textil
+        if (!mat.map && !mat.normalMap && !mat.bumpMap) {
+            mat.bumpMap = fallbackWeaveBump;
+            mat.bumpScale = 0.016;
+        }
+        mat.needsUpdate = true;
+        return mat;
+    };
+
     gltfScene.traverse((child) => {
         if (child.isMesh && child.geometry) {
             const bakedGeo = child.geometry.clone();
@@ -749,18 +784,20 @@ function normalizeAndBakeGltfScene(gltfScene, type) {
             bakedGeo.computeBoundingBox();
             bakedGeo.computeBoundingSphere();
 
-            const mesh = new THREE.Mesh(bakedGeo, fabricMaterial);
-            bakedGroup.add(mesh);
-
-            // Liberar geometría y materiales temporales del loader
-            child.geometry.dispose();
+            let finalMaterial = fabricMaterial;
             if (child.material) {
                 if (Array.isArray(child.material)) {
-                    child.material.forEach(m => m && m.dispose && m.dispose());
-                } else if (child.material.dispose) {
-                    child.material.dispose();
+                    finalMaterial = child.material.map(prepareGltfMaterial);
+                } else {
+                    finalMaterial = prepareGltfMaterial(child.material);
                 }
             }
+
+            const mesh = new THREE.Mesh(bakedGeo, finalMaterial);
+            bakedGroup.add(mesh);
+
+            // Liberar únicamente la geometría temporal del loader (conservando materiales y texturas)
+            child.geometry.dispose();
         }
     });
 
@@ -929,9 +966,31 @@ function buildGarmentModel(type) {
 }
 
 function updateAllGarmentColors(hexColor) {
-    const newColor = new THREE.Color(hexColor);
-    fabricMaterial.color.set(newColor);
-    secondaryMaterial.color.set(newColor).offsetHSL(0, 0, 0.025);
+    const isOriginalMode = !hexColor || hexColor === 'original' || orderState.useOriginalTextureColor;
+    const targetColor = new THREE.Color(isOriginalMode ? '#1c1c1e' : hexColor);
+
+    fabricMaterial.color.set(targetColor);
+    secondaryMaterial.color.set(targetColor).offsetHSL(0, 0, 0.025);
+
+    if (activeGarmentNode) {
+        activeGarmentNode.traverse((child) => {
+            if (!child.isMesh || !child.material) return;
+            const mats = Array.isArray(child.material) ? child.material : [child.material];
+            mats.forEach((mat) => {
+                if (!mat || mat === fabricMaterial || mat === secondaryMaterial || mat === buttonMaterial || mat === accentMetalMaterial || mat === innerNeckMaterial) {
+                    return;
+                }
+                if (mat.color) {
+                    if (isOriginalMode && mat.userData?.originalColor) {
+                        mat.color.copy(mat.userData.originalColor);
+                    } else if (!isOriginalMode) {
+                        mat.color.set(targetColor);
+                    }
+                    mat.needsUpdate = true;
+                }
+            });
+        });
+    }
 }
 
 /**
@@ -1718,6 +1777,17 @@ function initUIEvents() {
             orderState.logoY = spec.defaultPos.y;
             orderState.logoScale = spec.defaultPos.scale;
 
+            // Al cambiar a un modelo GLTF con texturas propias, mostrar su textura original 3D por defecto
+            if (GLTF_GARMENT_CONFIG[modelKey]) {
+                orderState.useOriginalTextureColor = true;
+                orderState.fabricColorName = 'Textura Original 3D';
+                document.querySelectorAll('.swatch').forEach(s => {
+                    s.classList.toggle('active', s.dataset.color === 'original');
+                });
+                const colorLabel = document.getElementById('fabric-color-name');
+                if (colorLabel) colorLabel.textContent = 'Textura Original 3D';
+            }
+
             document.getElementById('current-garment-label').textContent = `PRENDA: ${spec.name.toUpperCase()}`;
             document.getElementById('current-weave-label').textContent = `TEXTURA: ${spec.weaveLabel}`;
 
@@ -1740,11 +1810,19 @@ function initUIEvents() {
             document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
             swatch.classList.add('active');
 
-            orderState.fabricColor = swatch.dataset.color;
-            orderState.fabricColorName = swatch.dataset.name;
+            const chosenColor = swatch.dataset.color;
+            if (chosenColor === 'original') {
+                orderState.useOriginalTextureColor = true;
+                orderState.fabricColor = '#1c1c1e';
+                orderState.fabricColorName = swatch.dataset.name || 'Textura Original 3D';
+            } else {
+                orderState.useOriginalTextureColor = false;
+                orderState.fabricColor = chosenColor;
+                orderState.fabricColorName = swatch.dataset.name;
+            }
             document.getElementById('fabric-color-name').textContent = swatch.dataset.name;
 
-            updateAllGarmentColors(orderState.fabricColor);
+            updateAllGarmentColors(chosenColor);
         });
     });
 
@@ -1759,6 +1837,15 @@ function initUIEvents() {
         e.currentTarget.classList.toggle('active', isWireframe);
         fabricMaterial.wireframe = isWireframe;
         secondaryMaterial.wireframe = isWireframe;
+        if (activeGarmentNode) {
+            activeGarmentNode.traverse((child) => {
+                if (!child.isMesh || !child.material) return;
+                const mats = Array.isArray(child.material) ? child.material : [child.material];
+                mats.forEach(m => {
+                    if (m) m.wireframe = isWireframe;
+                });
+            });
+        }
     });
 
     document.getElementById('remove-bg-toggle').addEventListener('change', (e) => {
